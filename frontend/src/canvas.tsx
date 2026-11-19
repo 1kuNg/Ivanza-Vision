@@ -30,7 +30,7 @@ export function Editor({photo,settings,patch,close}:{photo:Photo,settings:Settin
     if(image.current)ctx.drawImage(image.current,l,t,w,h)
     function rect(b:Box,color:string,label?:string){
       ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(l+b[0]*w,t+b[1]*h,(b[2]-b[0])*w,(b[3]-b[1])*h)
-      if(label){ctx.fillStyle=color;ctx.font='13px monospace';ctx.fillText(label,l+b[0]*w+5,t+b[1]*h+15)}
+      if(label){ctx.fillStyle=color;ctx.font='15px monospace';ctx.fillText(label,l+b[0]*w+5,t+b[1]*h+15)}
     }
     if(mode==='grid'&&settings.grid_rows){
       const b=draft||settings.grid_bounds
@@ -44,7 +44,7 @@ export function Editor({photo,settings,patch,close}:{photo:Photo,settings:Settin
       if(draft)rect(draft,'#f07126')
     }else settings.points.forEach((pts,i)=>pts.forEach(([x,y,positive])=>{
       ctx.beginPath();ctx.arc(l+w*x,t+h*y,i===active?7:5,0,Math.PI*2);ctx.fillStyle=positive?'#54cf92':'#f85149';ctx.fill()
-      ctx.strokeStyle='#0b0f14';ctx.stroke();ctx.fillStyle='#fff';ctx.font='13px monospace';ctx.fillText(String(i+1),l+w*x+9,t+h*y)
+      ctx.strokeStyle='#0b0f14';ctx.stroke();ctx.fillStyle='#fff';ctx.font='15px monospace';ctx.fillText(String(i+1),l+w*x+9,t+h*y)
     }))
   },[photo,settings,view,mode,active,draft,tick])
   useEffect(()=>{

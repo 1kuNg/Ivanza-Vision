@@ -16,7 +16,9 @@ if errorlevel 1 goto :erro_powershell
 
 echo.
 echo ============================================================
-echo  IVANZATECH - Vision Lab 0.5.0 - Windows
+set "IVANZA_VISION_VERSION="
+if exist "%~dp0VERSION" set /p IVANZA_VISION_VERSION=<"%~dp0VERSION"
+echo  IVANZATECH - Vision Lab %IVANZA_VISION_VERSION% - Windows
 echo ============================================================
 echo.
 echo Iniciando o PowerShell com o caminho correto...

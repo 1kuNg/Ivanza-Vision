@@ -1,6 +1,7 @@
-# Ivanza Vision Lab v0.5.0; compatibilidade com Windows PowerShell 5.1.
+# Ivanza Vision Lab; compatibilidade com Windows PowerShell 5.1.
 $ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$version = (Get-Content -LiteralPath (Join-Path $projectDir 'VERSION') -Raw).Trim()
 $logDir = Join-Path $projectDir 'logs'
 try { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 catch {
@@ -74,6 +75,7 @@ function Find-Python {
 }
 
 $success = $false
+$browserJob = $null
 try {
     Stage '[1/4] Verificando o Python existente...'
     Write-Host ('Projeto: ' + $projectDir)
@@ -115,13 +117,35 @@ try {
         # Se houver erro de importacao de binarios, mostrar o traceback e nao destruir .venv.
         Invoke-Py $venvPy @($diag)
     }
-    Stage '[4/4] Abrindo Ivanza Vision Lab...'
+    Stage ('[4/4] Abrindo Ivanza Vision Lab v' + $version + '...')
     Write-Host 'Endereco local: http://127.0.0.1:8501'
     Write-Host 'Mantenha esta janela aberta. Para encerrar: Ctrl+C.'
     if (-not (Test-Path -LiteralPath (Join-Path $projectDir 'frontend/dist/index.html'))) {
         throw 'Frontend compilado ausente. Extraia o pacote completo ou execute npm ci e npm run build em frontend.'
     }
     Set-Location -LiteralPath $projectDir
+    try {
+        $browserJob = Start-Job -ArgumentList $version -ScriptBlock {
+            param([string]$ExpectedVersion)
+            $baseUrl = 'http://127.0.0.1:8501'
+            $deadline = (Get-Date).AddSeconds(60)
+            do {
+                try {
+                    $status = Invoke-RestMethod -Uri ($baseUrl + '/api/system/status') -TimeoutSec 2
+                    if ($status.version -eq $ExpectedVersion) {
+                        $page = Invoke-WebRequest -Uri $baseUrl -UseBasicParsing -TimeoutSec 2
+                        if ($page.StatusCode -eq 200) {
+                            Start-Process $baseUrl
+                            return
+                        }
+                    }
+                } catch { }
+                Start-Sleep -Milliseconds 400
+            } while ((Get-Date) -lt $deadline)
+        }
+    } catch {
+        Write-Host '[AVISO] Abra manualmente http://127.0.0.1:8501 no navegador.'
+    }
     Invoke-Py $venvPy @('-m', 'uvicorn', 'backend.api:app', '--host', '127.0.0.1', '--port', '8501', '--workers', '1', '--timeout-graceful-shutdown', '5') $true
     $success = $true
 } catch {
@@ -130,6 +154,7 @@ try {
     Write-Host ('Detalhes: ' + $_.Exception.Message) -ForegroundColor Red
     Write-Host ('Logs completos: ' + $logDir) -ForegroundColor Yellow
 } finally {
+    if ($null -ne $browserJob) { Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue }
     if ($started) { try { Stop-Transcript | Out-Null } catch { } }
 }
 if ($success) { exit 0 }

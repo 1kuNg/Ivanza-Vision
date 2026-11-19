@@ -83,7 +83,13 @@ class GroundingDetector:
             if x1 > x0 and y1 > y0:
                 detections.append(Detection(str(label).strip(' .') or '(sem rótulo)',
                                             float(score), (x0, y0, x1, y1)))
-        return sorted(detections, key=lambda item: item.score, reverse=True)
+        if not detections:
+            return []
+        from torchvision.ops import nms
+
+        boxes = torch.tensor([detection.box for detection in detections], dtype=torch.float32)
+        scores = torch.tensor([detection.score for detection in detections], dtype=torch.float32)
+        return [detections[index] for index in nms(boxes, scores, iou_threshold=0.50).tolist()]
 
 
 def normalize_depth(depth):
@@ -102,13 +108,26 @@ def depth_mask(depth, threshold: float):
 
 def depth_cell_means(depth, regions):
     h, w = depth.shape
-    return [float(depth[y0:y1, x0:x1].mean()) for x0, y0, x1, y1 in
-            (pixel_box((l*w, t*h, r*w, b*h), (w, h)) for l, t, r, b in regions)]
+    means = []
+    for left, top, right, bottom in regions:
+        x0, y0, x1, y1 = pixel_box((left*w, top*h, right*w, bottom*h), (w, h))
+        x0, y0 = min(x0, w-1), min(y0, h-1)
+        cell = depth[y0:max(y0+1, y1), x0:max(x0+1, x1)]
+        finite = cell[np.isfinite(cell)]
+        means.append(float(finite.mean()) if finite.size else 0.0)
+    return means
 
 
 def peak_depth_point(depth) -> tuple[float, float]:
+    import cv2
+
     h, w = depth.shape
-    y, x = np.unravel_index(depth.argmax(), depth.shape)
+    finite = np.where(np.isfinite(depth), depth, 0).astype(np.float32)
+    # A mediana remove picos isolados. Mapas menores que a janela mantêm o pico original.
+    filtered = cv2.medianBlur(finite, 3) if min(h, w) >= 3 else finite
+    if filtered.max() == filtered.min():
+        return ((.5 if w > 1 else 0.), (.5 if h > 1 else 0.))
+    y, x = np.unravel_index(filtered.argmax(), filtered.shape)
     return float(x / max(w - 1, 1)), float(y / max(h - 1, 1))
 
 
@@ -190,7 +209,7 @@ def compile_ocr_regex(pattern):
 
 def filter_ocr(readings, min_confidence=0.50, pattern=''):
     regex = compile_ocr_regex(pattern)
-    return [replace(item, regex_ok=bool(regex.fullmatch(item.text.strip())) if regex else None)
+    return [replace(item, regex_ok=bool(regex.search(item.text.strip())) if regex else None)
             for item in readings if item.confidence >= min_confidence]
 
 
@@ -221,7 +240,7 @@ class RapidOcrEngine:
 
 
 def draw_detections(image, detections):
-    output = image.copy()
+    output = image.convert('RGB').copy()
     draw = ImageDraw.Draw(output)
     width = max(2, image.width // 300)
     for item in detections:
@@ -233,7 +252,7 @@ def draw_detections(image, detections):
 
 
 def draw_ocr(image, readings):
-    output = image.copy()
+    output = image.convert('RGB').copy()
     draw = ImageDraw.Draw(output)
     for item in readings:
         color = '#ea692f' if item.regex_ok is False else '#39e0bc'

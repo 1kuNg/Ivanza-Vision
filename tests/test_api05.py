@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from backend.api import app
+from version import VERSION
 from backend.contracts import Settings
 from backend.llm_assistant import build_safe_telemetry_payload, parse_proposal
 from backend.session_store import Store
@@ -25,7 +26,8 @@ def test_telemetry_firewall_uses_only_numeric_metrics_and_calibrated_parameters(
     for forbidden in ('secret','ACME','base64','LOTE-917','11/02/2027'):
         assert forbidden not in serialized
     assert payload['results'][0]['metrics']['regex_ok']==[True,False]
-    assert build_safe_telemetry_payload(result,recipe,allow_ocr=True)['results'][0]['ocr_codes']==['LOTE-917','11/02/2027']
+    assert build_safe_telemetry_payload(result,recipe,allow_ocr=True)['results'][0]['ocr_readings']==[
+        {'text':text,'confidence':None,'regex_ok':None} for text in ('ACME','LOTE-917','11/02/2027')]
 
 
 def test_assistant_parses_fenced_valid_action_and_refuses_invalid_actions():
@@ -55,10 +57,10 @@ def test_content_addressed_upload_and_api_boundaries():
             assert (await http.post('/api/assistant/config',json={
                 'base_url':'http://127.0.0.1:11434/v1','model':'local','key':secret})).status_code==200
             status=await http.get('/api/system/status')
-            assert status.json()['llm_configured'] and status.json()['version']=='0.5.0'
+            assert status.json()['llm_configured'] and status.json()['version']==VERSION
             assert secret not in status.text
             assert (await http.post('/api/recipe/export',headers={'origin':'https://untrusted.example'},json={})).status_code==403
-            assert (await http.post('/api/recipe/export',json={})).json()['versao_lab']=='0.5.0'
+            assert (await http.post('/api/recipe/export',json={})).json()['versao_lab']==VERSION
             assert len((await http.get('/api/guide')).json()['cases'])==16
     asyncio.run(check())
 

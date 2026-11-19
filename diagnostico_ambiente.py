@@ -12,6 +12,8 @@ import traceback
 
 from importlib import metadata
 
+from version import VERSION
+
 
 REQUIRED = (
     ("numpy", "numpy"),
@@ -41,7 +43,7 @@ OPTIONAL = (
 
 
 def main():
-    print("=== Diagnostico de dependencias Ivanza Vision Lab v0.5.0 ===", flush=True)
+    print(f"=== Diagnostico de dependencias Ivanza Vision Lab v{VERSION} ===", flush=True)
     print("Python:", sys.version.replace("\n", " "), flush=True)
     print("Sistema:", platform.platform(), flush=True)
     if not (3, 10) <= sys.version_info[:2] <= (3, 12):

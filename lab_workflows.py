@@ -9,7 +9,7 @@ from dinov2_core import _normalize_rows
 from extra_models_core import EXTRA_ENGINES
 from vision_core import DINO_STRIDES, MODELS, SAM_NAME, dino_image_size
 
-VERSION = '0.4.0'
+from version import VERSION
 
 
 @dataclass

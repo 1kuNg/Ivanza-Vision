@@ -1,3 +1,4 @@
+from version import VERSION
 """Pós-processamento determinístico e compatibilidade da receita da v0.4."""
 import json
 
@@ -44,13 +45,14 @@ def test_siglip_independent_scores_and_multilabel_alerts():
     assert rows[0]['Probabilidade'] == pytest.approx(0.9820, abs=1e-4)
 
 
-def test_ocr_filters_confidence_fullmatches_and_reports_invalid_regex():
+def test_ocr_filters_confidence_searches_and_supports_anchors():
     pol = ((1, 1), (3, 1), (3, 3), (1, 3))
     readings = [OcrReading('LOTE-125', .5, pol), OcrReading('ETIQUETA LOTE-789', .9, pol),
                 OcrReading('LOTE-003', .49, pol)]
     returned = filter_ocr(readings, .5, r'LOTE-\d+')
     assert [(item.text, item.regex_ok) for item in returned] == [
-        ('LOTE-125', True), ('ETIQUETA LOTE-789', False)]
+        ('LOTE-125', True), ('ETIQUETA LOTE-789', True)]
+    assert filter_ocr(readings,.5,r'^LOTE-\d+$')[1].regex_ok is False
     assert filter_ocr(readings)[0].regex_ok is None
     assert all(item.regex_ok is None for item in readings)
     with pytest.raises(ValueError, match='Regex inválido'):
@@ -69,7 +71,7 @@ def test_receita_optional_extras_and_original_fields_roundtrip():
     assert old['schema_version'] == 1
     assert 'modelos_extras' not in old
     new = json.loads(json.dumps(inspection_recipe(*args, extra_settings=configs)))
-    assert new['schema_version'] == 2 and new['versao_lab'] == '0.4.0'
+    assert new['schema_version'] == 2 and new['versao_lab'] == VERSION
     for key in old.keys() - {'schema_version'}:
         assert new[key] == old[key]
     for (key, config), model_id in zip(configs.items(), [GROUNDING_ID, DEPTH_ID, SIGLIP_ID, OCR_ID]):

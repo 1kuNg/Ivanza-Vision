@@ -1,6 +1,21 @@
+import {useEffect,useRef,useState} from 'react'
 import {DEPTH,DINO,GROUND,GROUPS,OCR,SAM,SIGLIP,type Patch,type Settings} from './api'
 export function Range({label,value,set,min=0,max=1,step=.01}:{label:string,value:number,set:(x:number)=>void,min?:number,max?:number,step?:number}){
   return <label className="range"><span>{label}</span><b>{value.toFixed(2)}</b><input type="range" min={min} max={max} step={step} value={value} onChange={e=>set(+e.target.value)}/></label>
+}
+function SiglipStates({states,update}:{states:string[],update:(value:string[])=>void}){
+  const canonical=states.join('\n')
+  const [draft,setDraft]=useState(canonical)
+  const emitted=useRef(canonical)
+  useEffect(()=>{if(canonical!==emitted.current){emitted.current=canonical;setDraft(canonical)}},[canonical])
+  return <label>Estados, um por linha<textarea value={draft} onChange={e=>{
+    setDraft(e.target.value)
+    const lines=e.target.value.split('\n').map(line=>line.trim()).filter(Boolean)
+    if(lines.length>0&&lines.length<=16&&lines.every(line=>line.length<=120)){
+      emitted.current=lines.join('\n')
+      update(lines)
+    }
+  }}/></label>
 }
 export function Controls({s,patch,run,busy,collapsed,toggle}:{s:Settings,patch:Patch,run:()=>void,busy:boolean,collapsed:boolean,toggle:()=>void}){
   if(collapsed)return <aside className="collapsed"><button title="Expandir configuração" onClick={toggle}>☰</button></aside>
@@ -14,7 +29,7 @@ export function Controls({s,patch,run,busy,collapsed,toggle}:{s:Settings,patch:P
         <label>Correspondência<select value={s.mode} onChange={e=>patch({mode:e.target.value as Settings['mode']})}><option value="posicao">Mesma posição</option><option value="regioes">Regiões semelhantes</option></select></label>
         <Range label="Limiar" value={s.threshold} min={.02} max={.90} set={threshold=>patch({threshold})}/>
         <Range label="Opacidade" value={s.opacity} set={opacity=>patch({opacity})}/>
-        {check('use_sam_mask_filter','Filtrar fundo com SAM')}{has(DEPTH)&&check('use_depth_filter','Filtrar pela profundidade')}
+        {check('use_sam_mask_filter','Filtrar fundo com SAM')}{check('use_depth_filter','Filtrar pela profundidade')}
       </div></details>}
       {has(SAM)&&<details><summary>SAM 2.1</summary><div className="parameters">
         <label>Calibração (px/mm)<input type="number" min="0" step=".1" value={s.px_per_mm} onChange={e=>patch({px_per_mm:+e.target.value})}/></label>
@@ -29,7 +44,7 @@ export function Controls({s,patch,run,busy,collapsed,toggle}:{s:Settings,patch:P
       </div></details>}
       {has(DEPTH)&&<details open><summary>Depth Anything V2</summary><div className="parameters"><Range label="Corte de profundidade" value={s.depth_threshold} set={depth_threshold=>patch({depth_threshold})}/></div></details>}
       {has(SIGLIP)&&<details open><summary>SigLIP 2</summary><div className="parameters">
-        <label>Estados, um por linha<textarea defaultValue={s.siglip_states.join('\n')} onChange={e=>{const items=e.target.value.split('\n').map(s=>s.trim()).filter(Boolean);if(items.length<=16)patch({siglip_states:items})}}/></label>
+        <SiglipStates states={s.siglip_states} update={siglip_states=>patch({siglip_states})}/>
         <Range label="Limiar de alerta" value={s.siglip_threshold} set={siglip_threshold=>patch({siglip_threshold})}/>
       </div></details>}
       {has(OCR)&&<details open><summary>RapidOCR</summary><div className="parameters">

@@ -27,9 +27,9 @@ from .llm_assistant import build_safe_telemetry_payload, config, generate_report
 from .model_manager import ALL_MODELS, ModelManager
 from .session_store import Store
 from .webcam_service import Webcam
+from version import VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.5.0'
 store, manager, camera = Store(), ModelManager(), Webcam()
 examples = {p.name:p for p in (ROOT/'exemplos').glob('*.png')}
 
@@ -70,12 +70,12 @@ async def session_middleware(request, call_next):
 @app.exception_handler(RequestValidationError)
 async def invalid(request, error):
     fields = ['.'.join(map(str,e['loc'])) for e in error.errors()]
-    return JSONResponse({'detail':'Parâmetros inválidos: '+redact(', '.join(fields),request.state.session)},status_code=422)
+    return JSONResponse({'detail':'Parâmetros inválidos: '+redact(', '.join(fields),getattr(request.state, 'session', {}))},status_code=422)
 
 
 @app.exception_handler(ValueError)
 async def invalid_value(request, error):
-    return JSONResponse({'detail':redact(error,request.state.session)},status_code=400)
+    return JSONResponse({'detail':redact(error,getattr(request.state, 'session', {}))},status_code=400)
 
 
 @app.get('/api/system/status')
@@ -250,7 +250,10 @@ def sku_register(data:SkuSetup,request:Request):
 
 @app.post('/api/sku/predict')
 def sku_predict(data:Prediction,request:Request):
-    s=request.state.session
+    return predict(data, request.state.session)
+
+
+def predict(data, s):
     if not s.get('sku'):
         raise ValueError('Cadastre o banco primeiro.')
     name,size,p,bank=s['sku']
@@ -317,26 +320,28 @@ async def stream():
                              headers={'Cache-Control':'no-store'})
 
 
-def analyze_frame(frame,data,request):
-    ident=store.upload(frame)['image_id']
+def analyze_frame(frame,data,session):
+    ident=store.webcam_frame(frame)
     if data.sku:
-        return {'sku':sku_predict(Prediction(sample_id=ident,threshold=data.sku_threshold),request)}
+        return {'sku':predict(Prediction(sample_id=ident,threshold=data.sku_threshold),session)}
     params=data.model_dump(exclude={'interval','sku','sku_threshold'})
-    return run(AnalysisInput(**params,sample_id=ident),request)
+    return analyze(manager,store,AnalysisInput(**params,sample_id=ident),session,redact)
 
 
 @app.post('/api/webcam/analyze-latest')
 def analyze_latest(data:CameraAnalysis,request:Request):
-    return analyze_frame(latest_frame(),data,request)
+    return analyze_frame(latest_frame(),data,request.state.session)
 
 
 @app.post('/api/webcam/continuous')
 def continuous(data:CameraAnalysis,request:Request):
+    session = request.state.session
+
     def operation(frame):
         try:
-            return analyze_frame(frame,data,request)
+            return analyze_frame(frame,data,session)
         except Exception as exc:
-            return dict(error=redact(exc,request.state.session))
+            return dict(error=redact(exc,session))
     camera.continuous(data.interval,operation)
     return dict(ok=True)
 
@@ -396,7 +401,7 @@ def guide():
 
 class LLMSettings(Strict):
     base_url:str=Field(max_length=300)
-    model:str=Field(min_length=1,max_length=150)
+    model:str=Field(min_length=1,max_length=500)
     key:SecretStr|None=None
 
 
@@ -410,7 +415,7 @@ def configure_llm(data:LLMSettings,request:Request):
 
 class Report(Strict):
     run_id:str=Field(max_length=32)
-    focus:str=Field('',max_length=600)
+    focus:str=Field('',max_length=800)
     allow_ocr:bool=False
 
 
@@ -424,7 +429,7 @@ def assistant_report(data:Report,request:Request):
     item=store.rounds.get(data.run_id)
     if item is None:
         raise HTTPException(404,'Execute uma análise antes de gerar o parecer.')
-    telemetry=build_safe_telemetry_payload(*item,allow_ocr=data.allow_ocr)
+    telemetry=build_safe_telemetry_payload(*item,allow_ocr=data.allow_ocr,session=request.state.session)
     return dict(markdown=generate_report(request.state.session,telemetry,data.focus))
 
 

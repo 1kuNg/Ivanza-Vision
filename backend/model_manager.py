@@ -4,6 +4,7 @@ import threading
 
 from vision_core import DinoExtractor, DinoV3Extractor, MODELS, SAM_NAME, Sam2Segmenter
 from extra_models_core import EXTRA_ENGINES
+from .session_store import LRU
 
 EXTRA_NAMES = dict(zip(EXTRA_ENGINES, ('Grounding DINO Tiny', 'Depth Anything V2 Small', 'SigLIP 2 Base', 'RapidOCR')))
 ALL_MODELS = {**MODELS, **{v: EXTRA_ENGINES[k][0] for k, v in EXTRA_NAMES.items()}}
@@ -15,6 +16,7 @@ class ModelManager:
         self.lock = threading.Lock()
         self.models = {}
         self.features = {}
+        self.reference_detections = LRU(128)
 
     def get(self, name, token=None):
         # O chamador mantém lock durante a carga e toda inferência.
@@ -35,6 +37,7 @@ class ModelManager:
         with self.lock:
             self.models.clear()
             self.features.clear()
+            self.reference_detections.clear()
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()

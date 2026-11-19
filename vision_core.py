@@ -274,9 +274,10 @@ def select_mask_candidates(image: Image.Image, seg: MaskResult,
                       seg.candidates, seg.candidate_scores, list(choices), seg.prompts, seg.regions)
 
 
-def sam_mask_diagnostics(mask: np.ndarray, points: Sequence[tuple[float, float, int]],
+def sam_mask_diagnostics(mask: np.ndarray, points: Sequence[tuple[float, float, int]] | None = None,
                          score: float | None = None, px_per_mm: float = 0) -> dict:
     """Alertas geométricos indicativos; não significam aprovação/reprovação."""
+    points = points if points is not None else ()
     h, w = mask.shape
     area_pct = float(np.asarray(mask, dtype=bool).mean()*100)
     warnings = []
@@ -356,20 +357,34 @@ class Sam2Segmenter:
         self.model = Sam2Model.from_pretrained(SAM2_ID, use_safetensors=True).to(self.device)
         self.model.eval()
 
-    def segment(self, image: Image.Image, objects, multiple_candidates: bool = True,
+    def segment(self, image: Image.Image, objects=None, multiple_candidates: bool = True,
                 regions: list[tuple[float,float,float,float]] | None = None, *,
-                precision: str = 'FP32') -> MaskResult:
+                precision: str = 'FP32',
+                boxes: Sequence[tuple[float, float, float, float]] | None = None) -> MaskResult:
         prompts = clean_sam_objects(objects)
-        if not prompts:
-            raise ValueError('Marque pelo menos um ponto positivo dentro de uma peça.')
-        if regions is not None and len(regions) != len(prompts):
-            raise ValueError('Número de regiões diferente do número de peças.')
         original = image.convert('RGB')
         width, height = original.size
-        input_points, input_labels = sam2_prompt_arrays(prompts, width, height)
+        processor_inputs = {}
+        if prompts:
+            processor_inputs['input_points'], processor_inputs['input_labels'] = sam2_prompt_arrays(
+                prompts, width, height)
+        if boxes:
+            if len(boxes) > 12 or (prompts and len(prompts) != len(boxes)):
+                raise ValueError('Use até 12 caixas e uma caixa por grupo de pontos.')
+            pixel_boxes = []
+            for x0, y0, x1, y1 in boxes:
+                if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1):
+                    raise ValueError('Caixa SAM inválida. Use coordenadas normalizadas.')
+                pixel_boxes.append([x0 * width, y0 * height, x1 * width, y1 * height])
+            processor_inputs['input_boxes'] = [pixel_boxes]
+            if not prompts:
+                prompts = [[] for _ in boxes]
+        if not prompts:
+            raise ValueError('Marque um ponto positivo ou desenhe uma caixa.')
+        if regions is not None and len(regions) != len(prompts):
+            raise ValueError('Número de regiões diferente do número de peças.')
         start = perf_counter()
-        inputs = self.processor(images=original, input_points=input_points,
-                                input_labels=input_labels, return_tensors='pt').to(self.device)
+        inputs = self.processor(images=original, **processor_inputs, return_tensors='pt').to(self.device)
         original_sizes = inputs['original_sizes']
         with self.torch.inference_mode(), inference_autocast(self.torch, self.device, precision):
             outputs = self.model(**inputs, multimask_output=multiple_candidates)

@@ -23,33 +23,9 @@ def size_for(model, setting):
     return dino_image_size(model, (224, 384, 512).index(setting))
 
 
-class BoxProcessor:
-    def __init__(self, processor, boxes):
-        self.processor = processor
-        self.boxes = boxes
-
-    def __call__(self, *, images, **kwargs):
-        w, h = images.size
-        return self.processor(images=images,
-            input_boxes=[[[x0*(w-1), y0*(h-1), x1*(w-1), y1*(h-1)] for x0,y0,x1,y1 in self.boxes]], **kwargs)
-
-    def post_process_masks(self, *args, **kwargs):
-        return self.processor.post_process_masks(*args, **kwargs)
-
-
-def segment(model, image, points, boxes, regions, precision):
-    if not boxes:
-        return model.segment(image, points, regions=regions, precision=precision)
-    original = model.processor
-    model.processor = BoxProcessor(original, boxes)
-    try:
-        return model.segment(image, points, regions=regions, precision=precision)
-    finally:
-        model.processor = original
-
-
-def centers(boxes):
-    return [[((x0+x1)/2, (y0+y1)/2, 1)] for x0,y0,x1,y1 in boxes]
+def normalized_boxes(image, detections):
+    w, h = image.size
+    return [(x0/w, y0/h, x1/w, y1/h) for x0, y0, x1, y1 in (d.box for d in detections[:12])]
 
 
 def sam_output(store, sample, result, px, index):
@@ -95,7 +71,7 @@ def analyze(manager, store, settings, session, redact, pipeline=None):
     order = sorted(models, key=lambda m: 0 if m in (GROUND, DEPTH) else 1 if m == SAM_NAME else 2)
     regions = sam_grid_regions(s.grid_rows, s.grid_cols, s.grid_bounds) if s.grid_rows else None
     boxes = s.boxes
-    points = sam_grid_objects(regions) if regions else centers(boxes) if boxes else s.points
+    points = sam_grid_objects(regions) if regions else s.points
     run_id = uuid4().hex
     data, times = {}, {}
     detections = foreground = depth = None
@@ -143,14 +119,13 @@ def analyze(manager, store, settings, session, redact, pipeline=None):
                     if pipeline == 'grounding_sam_dino':
                         if not detections:
                             raise ValueError('O Grounding DINO não encontrou caixas para segmentar.')
-                        w,h = sample.size
-                        boxes = [(x0/w,y0/h,x1/w,y1/h) for x0,y0,x1,y1 in (d.box for d in detections[:12])]
-                        points, regions = centers(boxes), None
+                        boxes = normalized_boxes(sample, detections)
+                        points, regions = [], None
                     if pipeline == 'depth_sam':
                         if depth is None or not depth.any():
                             raise ValueError('Não há pico de profundidade para segmentar.')
                         points, boxes, regions = [[(*peak_depth_point(depth),1)]], [], None
-                    result = segment(model, sample, points, boxes if not regions else [], regions, p)
+                    result = model.segment(sample, points, regions=regions, precision=p, boxes=boxes if not regions else None)
                     infer = result.elapsed
                     foreground = np.logical_or.reduce(result.masks)
                     details = sam_output(store, sample, result, s.px_per_mm, 0)
@@ -176,11 +151,25 @@ def analyze(manager, store, settings, session, redact, pipeline=None):
                         raise ValueError('O filtro depende de uma máscara SAM válida.')
                     if reference_masks is None and (hybrid or s.use_depth_filter):
                         reference_masks = []
-                        for ref in refs:
+                        for ref, ref_id in zip(refs, s.ref_ids):
                             items = []
                             if hybrid:
                                 sam = manager.get(SAM_NAME,session.get('hf'))
-                                items.append(np.logical_or.reduce(segment(sam,ref,points,boxes if not regions else [],regions,p).masks))
+                                ref_boxes = boxes if not regions else None
+                                if pipeline == 'grounding_sam_dino':
+                                    detector = manager.get(GROUND, session.get('hf'))
+                                    key = (ref_id, s.grounding_prompt, s.grounding_threshold,
+                                           s.grounding_text_threshold, p)
+                                    found = manager.reference_detections.get(key)
+                                    if found is None:
+                                        found = detector.detect(ref, s.grounding_prompt, s.grounding_threshold,
+                                                                s.grounding_text_threshold, precision=p)
+                                        manager.reference_detections.put(key, found)
+                                    if not found:
+                                        raise ValueError('Grounding DINO não encontrou a peça em uma referência.')
+                                    ref_boxes = normalized_boxes(ref, found)
+                                reference = sam.segment(ref, points, regions=regions, precision=p, boxes=ref_boxes)
+                                items.append(np.logical_or.reduce(reference.masks))
                             if s.use_depth_filter:
                                 items.append(depth_mask(manager.get(DEPTH).estimate(ref,precision=p),s.depth_threshold))
                             reference_masks.append(np.logical_and.reduce(items))

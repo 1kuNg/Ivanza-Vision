@@ -1,10 +1,10 @@
-# Ivanza Vision Lab v0.5.0
+# Ivanza Vision Lab v0.5.1
 
 Bancada local de visão industrial com FastAPI, React, TypeScript, Vite e Tailwind. O servidor Python serve a interface compilada e a API no mesmo endereço.
 
 ## Instalação
 
-No Windows, extraia o pacote e execute `iniciar_windows.bat`. Use Python 3.10 a 3.12 x64 (3.11 ou 3.12 recomendado). Abra [http://127.0.0.1:8501](http://127.0.0.1:8501). O pacote inclui o frontend compilado. Node.js é necessário apenas para recompilar a interface.
+No Windows, extraia o pacote e execute `iniciar_windows.bat`. Use Python 3.10 a 3.12 x64 (3.11 ou 3.12 recomendado). O inicializador abre o navegador assim que a API responder. Endereço manual: [http://127.0.0.1:8501](http://127.0.0.1:8501). O pacote inclui o frontend compilado. Node.js é necessário apenas para recompilar a interface.
 
 Ao atualizar uma instalação que usava Streamlit na mesma porta, feche as abas antigas. Se o navegador ainda mostrar a interface anterior, abra o endereço em uma janela anônima ou recarregue com Ctrl+F5. O cliente antigo pode continuar consultando rotas `/_stcore/` até a aba ser fechada.
 
@@ -24,7 +24,7 @@ Para DINOv3, aceite os termos do checkpoint no Hugging Face e teste um token de 
 
 O padrão é `https://openrouter.ai/api/v1` com `openrouter/free`. Configure `LLM_BASE_URL`, `LLM_MODEL` e `LLM_API_KEY` (ou `OPENROUTER_API_KEY`) no ambiente ou use **Config / Tokens** para a sessão. Para Ollama ou llama.cpp use a URL OpenAI-compatible local, o nome do modelo e a chave quando exigida.
 
-A API transmite somente métricas, valores calibrados e categorias reconhecidas. O objetivo e a instrução em texto livre são interpretados localmente para extrair indicações permitidas. Use aspas em prompts e regex para mantê-los no lado local. O OCR é omitido por padrão. A opção explícita inclui apenas códigos de lote e datas numéricas reconhecidos. Propostas validadas só são aplicadas após confirmação na interface.
+O assistente envia instruções e perguntas em linguagem natural, parâmetros da bancada e telemetria selecionada ao provedor configurado. Credenciais conhecidas são mascaradas e imagens ficam no servidor. O texto OCR só é incluído quando você ativa a opção no relatório. O OpenRouter aceita uma lista de modelos separados por vírgula para fallback. As propostas passam por validação e só são aplicadas após confirmação.
 
 ## Desenvolvimento e testes
 

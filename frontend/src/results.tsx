@@ -52,7 +52,7 @@ function Card({name,round,s,deep,synced,adjust}:{name:string,round:Round,s:Setti
     try{const value=await api<ModelResult>('/sam/select-candidate',{run_id:round.run_id,choices,index});if(seq.current===current){setFocus(index);setState(value);setError('')}}catch(e){if(seq.current===current)setError(String(e))}
   }
   return <article className="card result-card">
-    <header className="split"><h3>{name}</h3><span className="mono muted">{fmt(row?.inference_ms)}</span></header>
+    <header className="split"><h3>{name}</h3><span className="latency-badge">{fmt(row?.inference_ms)}</span></header>
     {data.error?<p className="error">{data.error}</p>:<>
       {(DINO.includes(name)||name===DEPTH)&&<details className="view-options"><summary>Ajustar visualização</summary>
         <label>Corte <input type="range" min={name===DEPTH?0:.02} max={name===DEPTH?1:.9} step=".01" value={cut} onChange={e=>void updatePreview(+e.target.value,opacity)}/><span className="mono">{cut.toFixed(2)}</span></label>

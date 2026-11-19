@@ -26,6 +26,11 @@ class LRU:
                 self.total -= self.items.popitem(last=False)[1][1]
         return key
 
+    def clear(self):
+        with self.lock:
+            self.items.clear()
+            self.total = 0
+
     def get(self, key):
         with self.lock:
             value = self.items.get(key)
@@ -38,6 +43,7 @@ class LRU:
 class Store:
     def __init__(self):
         self.images = LRU(50, 256 * 1024**2)
+        self.webcam_frames = LRU(5, 90 * 1024**2)
         self.artifacts = LRU(240, 128 * 1024**2)
         self.rounds = LRU(20)
         self.views = LRU(35, 160 * 1024**2)
@@ -56,11 +62,21 @@ class Store:
             image = image[0]
         return dict(image_id=digest, width=image.width, height=image.height, url=f'/api/images/{digest}')
 
+    def webcam_frame(self, data):
+        key = sha256(data).hexdigest()
+        if self.webcam_frames.get(key) is None:
+            image = open_image(data)
+            self.webcam_frames.put(key, image, image.width * image.height * 3)
+        return key
+
     def image(self, key):
         entry = self.images.get(key)
-        if entry is None:
+        if entry is not None:
+            return entry[0]
+        frame = self.webcam_frames.get(key)
+        if frame is None:
             raise ValueError('A imagem expirou ou não existe. Envie novamente.')
-        return entry[0]
+        return frame
 
     def artifact(self, image):
         data = png_bytes(image)
