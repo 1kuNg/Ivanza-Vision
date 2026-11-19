@@ -29,8 +29,8 @@ function Invoke-Py([string]$exe, [string[]]$argsList, [bool]$streamOutput = $fal
     try {
         $ErrorActionPreference = 'Continue'
         if ($streamOutput) {
-            # Para servidores persistentes, a saida precisa aparecer em tempo real.
-            & $exe @argsList 2>&1 | Tee-Object -FilePath $capture
+            # Preserva a saida ao vivo e grava stderr como texto, sem cabecalho de erro do PowerShell.
+            & $exe @argsList 2>&1 | ForEach-Object { [string]$_ } | Tee-Object -FilePath $capture
         } else {
             & $exe @argsList *> $capture
         }

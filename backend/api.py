@@ -51,7 +51,10 @@ app.add_middleware(TrustedHostMiddleware,allowed_hosts=['localhost','127.0.0.1',
 @app.middleware('http')
 async def session_middleware(request, call_next):
     if not request.url.path.startswith('/api/'):
-        return await call_next(request)
+        response = await call_next(request)
+        if request.url.path in ('/', '/index.html'):
+            response.headers['Cache-Control'] = 'no-store'
+        return response
     origin = request.headers.get('origin')
     if origin and (urlsplit(origin).netloc != request.headers.get('host') and
                    origin not in ('http://localhost:5173','http://127.0.0.1:5173')):

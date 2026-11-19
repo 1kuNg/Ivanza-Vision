@@ -6,6 +6,8 @@ Bancada local de visão industrial com FastAPI, React, TypeScript, Vite e Tailwi
 
 No Windows, extraia o pacote e execute `iniciar_windows.bat`. Use Python 3.10 a 3.12 x64 (3.11 ou 3.12 recomendado). Abra [http://127.0.0.1:8501](http://127.0.0.1:8501). O pacote inclui o frontend compilado. Node.js é necessário apenas para recompilar a interface.
 
+Ao atualizar uma instalação que usava Streamlit na mesma porta, feche as abas antigas. Se o navegador ainda mostrar a interface anterior, abra o endereço em uma janela anônima ou recarregue com Ctrl+F5. O cliente antigo pode continuar consultando rotas `/_stcore/` até a aba ser fechada.
+
 No Linux, execute `bash iniciar_linux.sh`. O ambiente Python é isolado em `.venv`. A primeira instalação e os primeiros downloads de modelos requerem conexão. Os pesos são os checkpoints oficiais e o Hugging Face guarda o cache local.
 
 ## Telas
