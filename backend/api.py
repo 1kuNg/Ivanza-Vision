@@ -19,6 +19,7 @@ from extra_models_core import normalize_grounding_prompt, compile_ocr_regex
 from hf_auth import verify_dinov3_access, save_dinov3_login
 from industrial_guide import MATRIX, CASES, EXTRA_CASES
 from lab_workflows import SkuBank, inspection_recipe, recipe_with_extras
+from sku_demos import SKU_DEMOS, demo_payload
 from vision_core import (DINO_STRIDES, DINOV3_ID, DINOV3_CONVNEXT_ID, SAM_NAME, cached_reference_feature,
                          sam_grid_regions, sam_grid_objects, select_mask_candidates)
 from .analysis import analyze, depth_output, heatmap_output, sam_output, size_for, DEPTH
@@ -210,6 +211,23 @@ def preview(data:Preview):
         raise ValueError('Modelo sem controles de mapa.')
     ident,result=find_view(data.run_id,data.model)
     return heatmap_output(store,store.image(ident),result,data.threshold,data.opacity)
+
+
+@app.get('/api/sku/demos')
+def sku_demos():
+    """Catálogo de ensaios sintéticos, sem carregar pesos de modelos."""
+    return [dict(id=key,title=value['title'],description=value['description'],
+                 explanation=value['explanation'],classes=value['classes'],
+                 unknown=value['unknown'])
+            for key,value in SKU_DEMOS.items()]
+
+
+@app.post('/api/sku/demos/{name}/load')
+def sku_demo_load(name: str):
+    """Disponibiliza referências e amostras reais na Store, sem fingir resultados."""
+    if name not in SKU_DEMOS:
+        raise HTTPException(404,'Demonstração desconhecida.')
+    return demo_payload(name,store.upload)
 
 
 class SkuClass(Strict):

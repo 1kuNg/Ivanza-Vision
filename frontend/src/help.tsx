@@ -7,6 +7,8 @@ type Props = {
   onDemo:(demo:Demo)=>void
   onPage:(page:Page)=>void
   onPipeline:(id:string)=>void
+  onSkuDemo:(id:string)=>void
+  onConvnextDemo:()=>void
 }
 
 type Test = {
@@ -21,6 +23,8 @@ type Test = {
   page:Page
   demo?:Demo
   pipeline?:string
+  skuDemo?:string
+  convnext?:boolean
 }
 const MODELS = [
   {name:'DINOv2', nickname:'O detector de diferenças', symbol:'🔎',
@@ -33,6 +37,11 @@ const MODELS = [
    try:'Analise o mesmo painel com DINOv2 e DINOv3, mantendo a mesma resolução.',
    read:'Compare o mapa de diferenças, a localização da falha e os milissegundos de inferência.',
    note:'Os checkpoints DINOv3 precisam de autorização no Hugging Face e podem ser mais pesados.'},
+  {name:'DINOv3 ConvNeXt Tiny', nickname:'Um reconhecedor com outra arquitetura', symbol:'⚙️',
+   does:'É um DINOv3 baseado em rede convolucional (CNN), em vez do Transformer visual da versão Small. Pode ser interessante para reconhecimento de produtos e para comparar velocidade e consumo de memória.',
+   try:'Abra o exemplo do painel com DINOv2 e ConvNeXt Tiny ou experimente o classificador SKU com as duas embalagens prontas.',
+   read:'Veja se reconheceu a classe correta no Few-Shot e compare tempos e mapas de diferença no Comparador.',
+   note:'No mapa de diferenças, cada célula cobre uma área maior que no DINOv3 ViT. Para detalhes pequenos, compare com outros modelos. Precisa liberar o checkpoint em Config / Tokens.'},
   {name:'SAM 2.1', nickname:'A tesoura inteligente', symbol:'✂️',
    does:'Recorta um objeto do fundo por meio de pontos, caixas ou uma grade. O resultado é uma máscara que acompanha o formato da peça.',
    try:'Fotografe um alicate, abra Editar marcações SAM e clique no centro da ferramenta.',
@@ -97,9 +106,14 @@ const TESTS:Test[] = [
   {title:'Garrafa sem tampa',level:'Muito fácil',category:'Inspeção',model:'DINOv2',materials:'Uma garrafa e câmera',page:'Comparador',
    steps:['Fotografe a garrafa com tampa e carregue como Referências.','Sem mexer na garrafa ou câmera, retire a tampa e fotografe.','Carregue a nova foto como Imagem de teste.','Selecione DINOv2 Small e execute.'],
    expected:'A região da tampa pode ser destacada no mapa de diferenças.',interpret:'Fotografe também outra garrafa normal para descobrir a variação natural do teste.'},
-  {title:'Reconhecer dois produtos com poucas fotos',level:'Fácil',category:'Reconhecimento',model:'DINO / Few-Shot',materials:'Dois produtos e 3 fotos de cada',page:'Few-Shot / SKU',
-   steps:['Renomeie as classes para Produto A e Produto B.','Adicione 3 fotos de cada classe, com pequenos ângulos diferentes.','Clique em Registrar banco.','Classifique uma foto nova e teste um terceiro produto como desconhecido.'],
-   expected:'O Lab mostra a classe mais semelhante e a margem para a segunda.',interpret:'Ajuste Limiar de desconhecido. Um valor alto rejeita mais objetos; um valor baixo aceita mais objetos errados.'},
+  {title:'Few-Shot pronto: reconhecer duas embalagens',level:'Muito fácil',category:'Reconhecimento',model:'DINOv2 ou ConvNeXt Tiny',materials:'Nenhum — 9 imagens de demonstração carregadas automaticamente',page:'Few-Shot / SKU',skuDemo:'embalagens',
+   steps:['Clique em Abrir exemplo pronto e deixe o Lab registrar as duas classes de embalagem.','Observe as 3 referências por classe e o primeiro resultado real.','Clique na imagem de teste Caixa laranja e depois Lata verde (desconhecida).','Compare classificação, similaridade, margem e limiar de desconhecido.','Troque para ConvNeXt Tiny na própria tela e repita o teste.'],
+   expected:'O modelo deve reconhecer as classes cadastradas quando as características forem suficientes; a lata pode ser rejeitada ajustando o limiar.',
+   interpret:'A previsão é calculada pelo modelo real. Um item desconhecido pode ser confundido com classes conhecidas se o limiar estiver baixo. Não são porcentagens de certeza.'},
+  {title:'Few-Shot pronto: identificar porca, arruela e parafuso',level:'Muito fácil',category:'Reconhecimento',model:'DINOv2 ou ConvNeXt Tiny',materials:'Nenhum — exemplos sintéticos incluídos',page:'Few-Shot / SKU',skuDemo:'fixadores',
+   steps:['Abra o exemplo para cadastrar 3 imagens de Porca sextavada e 3 de Arruela.','Observe a primeira classificação executada pelo DINO.','Teste a imagem de Arruela e a de Parafuso, que não estava no cadastro.','Ajuste o limiar e compare as respostas.','Repita com ConvNeXt Tiny para conferir qual arquitetura funciona melhor.'],
+   expected:'Classificações e similaridades reais para formatos de fixadores diferentes.',
+   interpret:'Os exemplos são ilustrações controladas. Valide com fotografias verdadeiras antes de aplicar a uma linha industrial.'},
   {title:'Encontrar vários objetos ao mesmo tempo',level:'Fácil',category:'Localização',model:'Grounding DINO',materials:'Garrafa, xícara e tesoura',page:'Comparador',
    steps:['Fotografe os objetos afastados entre si.','Ative Grounding DINO Tiny.','No campo Objetos escreva bottle. cup. scissors.','Execute e compare as caixas com os objetos reais.'],
    expected:'Caixas em volta dos objetos encontrados.',interpret:'Remova um objeto e repita. Confira falsos positivos e objetos não encontrados.'},
@@ -121,6 +135,10 @@ const TESTS:Test[] = [
   {title:'Comparar DINOv2 com DINOv3',level:'Intermediário',category:'Comparação',model:'DINOv2 + DINOv3',materials:'Painel do exemplo + DINOv3 autorizado',demo:'painel',page:'Comparador',
    steps:['Abra o exemplo do painel.','Ative DINOv2 Small e DINOv3 Small.','Autorize o checkpoint DINOv3 em Config / Tokens, se necessário.','Execute e compare mapa, inferência e resolução.'],
    expected:'Dois mapas de diferenças e tempos de análise para a mesma imagem.',interpret:'O melhor para sua aplicação é o que localiza falhas com menos falsos alarmes.'},
+  {title:'Comparação pronta: DINOv2 x DINOv3 ConvNeXt Tiny',level:'Fácil com acesso liberado',category:'Comparação',model:'ConvNeXt Tiny',materials:'Painel de exemplo e autorização do checkpoint no Hugging Face',page:'Comparador',convnext:true,
+   steps:['Abra este teste: o Lab coloca o painel completo e o painel com peça faltando.','Deixa DINOv2 Small e DINOv3 ConvNeXt Tiny selecionados, em resolução 384.','Em Config / Tokens, escolha DINOv3 ConvNeXt Tiny e verifique a autorização.','Execute a comparação e analise os dois mapas de diferenças e os tempos.'],
+   expected:'Resultados separados dos dois modelos reais para a mesma peça.',
+   interpret:'O ConvNeXt trabalha com grade mais grossa (stride 32); compare detecção de defeitos e velocidade, não apenas a cor do mapa.'},
   {title:'Detectar mudança de cor ou etiqueta',level:'Fácil',category:'Inspeção',model:'DINOv2',materials:'Duas embalagens parecidas',page:'Comparador',
    steps:['Fotografe uma embalagem e salve como referência.','Troque a etiqueta ou o produto por outro muito parecido.','Carregue a imagem nova como teste.','Compare os resultados em 224 e 512.'],
    expected:'Partes alteradas podem gerar maior distância visual.',interpret:'Alterações muito pequenas podem não aparecer; compare sempre com exemplos reais de defeitos.'},
@@ -164,7 +182,7 @@ const tabs = [
 ] as const
 type Tab = typeof tabs[number][0]
 
-export function Guide({onDemo,onPage,onPipeline}:Props){
+export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props){
   const [tab,setTab]=useState<Tab>('inicio')
   const [search,setSearch]=useState('')
   const [category,setCategory]=useState('Todos')
@@ -172,7 +190,7 @@ export function Guide({onDemo,onPage,onPipeline}:Props){
   const shownTests=TESTS.filter(t=>(category==='Todos'||category===t.category)&&normalize([t.title,t.model,t.materials,t.expected].join(' ')).includes(normalize(search)))
   const shownModels=MODELS.filter(m=>normalize([m.name,m.nickname,m.does,m.try].join(' ')).includes(normalize(search)))
   const shownPipelines=PIPELINES.filter(p=>normalize([p.title,p.nickname,p.uses,p.try].join(' ')).includes(normalize(search)))
-  function openTest(t:Test){if(t.demo)onDemo(t.demo);else if(t.pipeline)onPipeline(t.pipeline);else onPage(t.page)}
+  function openTest(t:Test){if(t.skuDemo)onSkuDemo(t.skuDemo);else if(t.convnext)onConvnextDemo();else if(t.demo)onDemo(t.demo);else if(t.pipeline)onPipeline(t.pipeline);else onPage(t.page)}
   return <section className="easy-guide">
     <header className="help-hero">
       <div><span className="help-eyebrow">IVANZA VISION LAB · AJUDA PRÁTICA</span><h1>Descubra o que a IA enxerga.</h1>
@@ -195,7 +213,7 @@ export function Guide({onDemo,onPage,onPipeline}:Props){
           <button className="primary" onClick={()=>onDemo('bandeja')}>Abrir exemplo: bandeja</button></article>
         <article className="card help-card"><span className="help-tag">3 · Com objetos reais</span><h3>Ensine duas classes em minutos</h3>
           <p>Cadastre fotos de dois produtos e teste se o sistema reconhece novas fotos ou um produto desconhecido.</p>
-          <button onClick={()=>onPage('Few-Shot / SKU')}>Abrir Few-Shot / SKU</button></article>
+          <button className="primary" onClick={()=>onSkuDemo('embalagens')}>Executar exemplo Few-Shot pronto</button></article>
       </div>
       <div className="card help-advice"><h3>Qual modelo usar?</h3>
         <p><strong>Mudou alguma coisa?</strong> DINO. <strong>Quero separar o objeto do fundo?</strong> SAM. <strong>Quero encontrar uma peça pelo nome?</strong> Grounding DINO. <strong>Quero ler uma etiqueta?</strong> RapidOCR.</p>
@@ -215,7 +233,7 @@ export function Guide({onDemo,onPage,onPipeline}:Props){
         <div className="help-model-head"><span className="help-symbol">{model.symbol}</span><div><h3>{model.name}</h3><strong className="help-subtitle">{model.nickname}</strong></div></div>
         <p>{model.does}</p>
         <details><summary>Como testar e interpretar</summary><p><strong>Teste rápido:</strong> {model.try}</p><p><strong>O que olhar:</strong> {model.read}</p><p><strong>Atenção:</strong> {model.note}</p></details>
-        <button onClick={()=>onPage(model.name==='Depth Anything V2'||model.name==='RapidOCR'||model.name==='SigLIP 2'||model.name==='Grounding DINO'?'Comparador':'Comparador')}>Abrir Comparador</button>
+        <button onClick={()=>model.name==='DINOv3 ConvNeXt Tiny'?onConvnextDemo():onPage('Comparador')}>{model.name==='DINOv3 ConvNeXt Tiny'?'Abrir comparação pronta':'Abrir Comparador'}</button>
       </article>)}</div>
       {!shownModels.length&&<p>Nenhum modelo encontrado. Tente outra palavra.</p>}
     </div>}
@@ -245,7 +263,7 @@ export function Guide({onDemo,onPage,onPipeline}:Props){
           <ol>{t.steps.map(step=><li key={step}>{step}</li>)}</ol>
           <p><strong>O que deve acontecer:</strong> {t.expected}</p>
           <p><strong>Como interpretar:</strong> {t.interpret}</p>
-          <button className="primary" onClick={()=>openTest(t)}>{t.demo?'Abrir exemplo pronto':t.pipeline?'Abrir pipeline':'Ir para '+t.page}</button>
+          <button className="primary" onClick={()=>openTest(t)}>{t.skuDemo?'Executar Few-Shot pronto':t.convnext?'Comparar DINOv2 x ConvNeXt':t.demo?'Abrir exemplo pronto':t.pipeline?'Abrir pipeline':'Ir para '+t.page}</button>
         </div>
       </details>)}</div>
       {!shownTests.length&&<p>Nenhum teste encontrado. Limpe a busca ou escolha Todos.</p>}

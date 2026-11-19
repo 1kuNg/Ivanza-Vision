@@ -36,6 +36,7 @@ function App(){
   const [round,setRound]=useState<Round>(),[compare,setCompare]=useState<Round>(),[pipelineRound,setPipelineRound]=useState<Round>()
   const [pipeline,setPipeline]=useState('grounding_ocr'),[entry,setEntry]=useState(true),[collapsed,setCollapsed]=useState(false),[editor,setEditor]=useState<Photo>()
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[configOpen,setConfigOpen]=useState(false),[assistant,setAssistant]=useState(false)
+  const [skuDemoRequest,setSkuDemoRequest]=useState<string>()
   const [runningModels,setRunningModels]=useState<string[]>([]),[toast,setToast]=useState<{text:string,error:boolean}>()
   const pending=useRef(false)
   useEffect(()=>{if(!toast)return;const id=window.setTimeout(()=>setToast(undefined),6000);return()=>window.clearTimeout(id)},[toast])
@@ -121,9 +122,9 @@ function App(){
         {page==='Pipelines'&&<>{input}<div className="card toolbar"><label>Fluxo <select value={pipeline} onChange={e=>choosePipeline(e.target.value)}>{Object.entries(system?.pipelines||{grounding_ocr:'Grounding DINO → RapidOCR'}).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label><button className="primary" disabled={busy||!sample} onClick={()=>task(()=>execute(pipeline))}>▶ Executar Pipeline</button></div>
           <div className="flow">{['Entrada',...stageLabel(pipeline),'Saída'].map((step,i)=><div className="card" key={step}><small>{i===0?'IMAGEM':i===stageLabel(pipeline).length+1?'RESULTADO':'ETAPA '+i}</small><strong>{step}</strong>{i===0&&sample&&<img src={sample.url} alt="Entrada do pipeline"/>}</div>)}</div>
           {runningModels.length>0?<AnalysisSkeleton models={runningModels}/>:pipelineRound&&pipelineRound.pipeline===pipeline&&<Results round={pipelineRound} s={s}/>}</>}
-        <div hidden={page!=='Few-Shot / SKU'}><Sku settings={s} task={task}/></div>
+        <div hidden={page!=='Few-Shot / SKU'}><Sku settings={s} task={task} requestedDemo={skuDemoRequest} onHandled={()=>setSkuDemoRequest(undefined)}/></div>
         {page==='Webcam'&&<Webcam settings={s} refIds={refs.map(p=>p.image_id)} addRef={p=>preserveRefs([p])} edit={p=>setEditor(p)} task={task} onRound={setRound}/>}
-        {page==='Guia Industrial'&&<Guide onDemo={demo=>{pickExample(demo);setPage('Comparador')}} onPage={navigate} onPipeline={id=>{choosePipeline(id);setPage('Pipelines')}}/>}
+        {page==='Guia Industrial'&&<Guide onDemo={demo=>{pickExample(demo);setPage('Comparador')}} onPage={navigate} onPipeline={id=>{choosePipeline(id);setPage('Pipelines')}} onSkuDemo={id=>{setSkuDemoRequest(id);setPage('Few-Shot / SKU')}} onConvnextDemo={()=>{pickExample('painel');patch({models:[DINO[0],DINO[2]],resolution:384});setPage('Comparador')}}/>}
       </main>
     </div>
     {toast&&<div className={'toast '+(toast.error?'error':'notice')} role={toast.error?'alert':'status'}>{toast.text}<button aria-label="Fechar notificação" onClick={()=>setToast(undefined)}>×</button></div>}

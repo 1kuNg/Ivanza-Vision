@@ -15,6 +15,10 @@ No Linux, execute `bash iniciar_linux.sh`. O ambiente Python é isolado em `.ven
 - **Comparador**. Carregue imagem e referências pelo seletor ou escolha os exemplos. Selecione os modelos e execute. Use o editor SAM para pontos, marcações negativas, grade e caixas. Compare saídas com zoom sincronizado ou abra a inspeção profunda.
 - **Pipelines**. Selecione Grounding → SAM → DINOv3, Grounding → RapidOCR, Depth → SAM ou SAM → DINO. Os fluxos DINO usam imagens normais de referência.
 - **Few-Shot / SKU**. Registre de duas a seis classes com uma a dez fotos por classe. O vizinho mais próximo usa os vetores globais do DINO. Ajuste o limiar de desconhecido para o conjunto em uso.
+  - **Exemplos prontos (sem webcam):** na própria tela, escolha **Embalagens: frasco x caixa** ou **Fixadores: porca x arruela** e clique em **Testar DINOv2** ou **Testar ConvNeXt Tiny**. O Lab cria três imagens de referência por classe, registra o banco de vetores e executa uma classificação real. Depois selecione as três imagens de teste, incluindo um objeto não cadastrado.
+  - As imagens são geradas sinteticamente para demonstração. Nenhum score ou resultado é simulado: as inferências usam o checkpoint selecionado. A rejeição de um desconhecido depende do limiar e não é garantida. Para testes industriais, substitua por fotos reais.
+  - O DINOv3 ConvNeXt Tiny requer acesso ao próprio checkpoint em **Config / Tokens → DINOv3 ConvNeXt Tiny**; a primeira execução pode baixar os pesos.
+  - Na **Ajuda & Testes** também há um botão para comparar **DINOv2 x ConvNeXt Tiny** no mesmo painel com peça faltando.
 - **Webcam**. A câmera pertence ao computador que executa o servidor. Capture referências, analise o quadro mais recente ou ative o intervalo contínuo. A captura MJPEG é independente da inferência.
 - **Guia Industrial**. Matriz comparativa, licenças e casos técnicos com busca.
 

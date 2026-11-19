@@ -11,20 +11,165 @@ function ClassResult({value}:{value:Prediction}){
   return <><div className="split"><h3>{value.label}</h3><span className="mono">Margem {value.margin.toFixed(3)}</span></div>
     <Bars values={Object.entries(value.by_class).map(([k,v])=>[k,v])}/></>
 }
-export function Sku({settings,task}:{settings:Settings,task:(fn:()=>Promise<void>)=>void}){
-  const [classes,setClasses]=useState([{name:'OK',photos:[] as Photo[]},{name:'NG',photos:[] as Photo[]}])
-  const [model,setModel]=useState(DINO[0]),[active,setActive]=useState(false),[sample,setSample]=useState<Photo>(),[limit,setLimit]=useState(.75),[result,setResult]=useState<Prediction>()
-  function edit(i:number,v:Partial<(typeof classes)[number]>){setClasses(items=>items.map((item,j)=>i===j?{...item,...v}:item))}
-  return <div className="split-panels">
-    <section className="card"><h2>Cadastro de classes</h2><label>Backbone<select value={model} onChange={e=>setModel(e.target.value)}>{DINO.map(m=><option key={m}>{m}</option>)}</select></label>
-    {classes.map((c,i)=><div key={i} className="class-entry"><input aria-label={'Nome da classe '+(i+1)} value={c.name} onChange={e=>edit(i,{name:e.target.value})}/><Files label={'Fotos · '+c.photos.length} multiple change={files=>task(async()=>edit(i,{photos:await Promise.all(files.slice(0,10).map(upload))}))}/>{classes.length>2&&<button onClick={()=>setClasses(cs=>cs.filter((_,j)=>j!==i))}>Remover</button>}</div>)}
-    <div className="toolbar"><button disabled={classes.length>=6} onClick={()=>setClasses([...classes,{name:'',photos:[]}])}>+ Classe</button>
-      <button className="primary" disabled={classes.some(c=>!c.name.trim()||!c.photos.length)} onClick={()=>task(async()=>{await api('/sku/register',{model,classes:classes.map(c=>({name:c.name,image_ids:c.photos.map(p=>p.image_id)})),resolution:settings.resolution,precision:settings.precision});setActive(true);setResult(undefined)})}>Registrar banco</button>
-      <button onClick={()=>task(async()=>{await api('/sku/clear',undefined,'DELETE');setActive(false);setResult(undefined)})}>Limpar</button></div>
-    </section><section className="card"><div className="split"><h2>Teste e similaridade</h2>{active&&<span className="good">Banco disponível</span>}</div>
-      <Range label="Limiar de desconhecido" value={limit} min={-1} set={setLimit}/><div className="toolbar"><Files label="Imagem de teste" change={files=>task(async()=>{setSample(await upload(files[0]));setResult(undefined)})}/>
-      <button className="primary" disabled={!sample} onClick={()=>task(async()=>setResult(await api('/sku/predict',{sample_id:sample?.image_id,threshold:limit})))}>Classificar</button></div>
-      {sample&&<img className="sku-image" src={sample.url} alt="Amostra SKU"/>}{result&&<ClassResult value={result}/>}</section>
+type SkuClassEntry={name:string,photos:Photo[]}
+type SkuDemoTest={name:string,expected:string,photo:Photo}
+type SkuDemo={id:string,title:string,description:string,explanation:string,classes:SkuClassEntry[],tests:SkuDemoTest[]}
+
+export function Sku({settings,task,requestedDemo,onHandled}:{settings:Settings,task:(fn:()=>Promise<void>)=>void,
+  requestedDemo?:string,onHandled?:()=>void}){
+  const [classes,setClasses]=useState<SkuClassEntry[]>([{name:'OK',photos:[]},{name:'NG',photos:[]}])
+  const [model,setModel]=useState(DINO[0]),[active,setActive]=useState(false),[sample,setSample]=useState<Photo>()
+  const [limit,setLimit]=useState(.75),[result,setResult]=useState<Prediction>()
+  const [demo,setDemo]=useState<SkuDemo>(),[selectedTest,setSelectedTest]=useState(0)
+  const [working,setWorking]=useState(false),[status,setStatus]=useState('')
+  const [elapsed,setElapsed]=useState<number|undefined>()
+
+  function perform(fn:()=>Promise<void>){
+    task(async()=>{setWorking(true);try{await fn()}catch(error){
+      setStatus('Não foi possível concluir o teste. Confira a mensagem de erro e a configuração do modelo.')
+      throw error
+    }finally{setWorking(false)}})
+  }
+  function edit(i:number,v:Partial<SkuClassEntry>){
+    setDemo(undefined);setActive(false);setResult(undefined);setStatus('')
+    setClasses(items=>items.map((item,j)=>i===j?{...item,...v}:item))
+  }
+  async function registerBank(name:string,entries:SkuClassEntry[]){
+    await api('/sku/register',{model:name,classes:entries.map(item=>({name:item.name,image_ids:item.photos.map(p=>p.image_id)})),
+      resolution:settings.resolution,precision:settings.precision})
+    setActive(true)
+  }
+  async function classify(image:Photo,threshold:number){
+    const start=performance.now()
+    const prediction=await api<Prediction>('/sku/predict',{sample_id:image.image_id,threshold})
+    setElapsed(performance.now()-start)
+    setSample(image)
+    setResult(prediction)
+    return prediction
+  }
+  function runDemo(id:string,backbone:string){
+    perform(async()=>{
+      setStatus('Carregando imagens do exemplo...')
+      setDemo(undefined);setActive(false);setResult(undefined);setElapsed(undefined)
+      const data=await api<SkuDemo>('/sku/demos/'+encodeURIComponent(id)+'/load',{})
+      setDemo(data);setClasses(data.classes);setModel(backbone);setSelectedTest(0);setSample(data.tests[0].photo)
+      setLimit(.75)
+      setStatus('Carregando '+backbone+' e registrando as referências reais...')
+      await registerBank(backbone,data.classes)
+      setStatus('Classificando a primeira imagem com '+backbone+'...')
+      const predicted=await classify(data.tests[0].photo,.75)
+      setStatus('Teste executado: '+predicted.label+'. Escolha outra imagem abaixo, inclusive a desconhecida.')
+    })
+  }
+  useEffect(()=>{
+    if(requestedDemo){
+      onHandled?.()
+      runDemo(requestedDemo,'DINOv2 Small')
+    }
+    // Este comando é disparado somente por uma seleção na ajuda.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[requestedDemo])
+
+  function selectAndClassify(test:SkuDemoTest,index:number){
+    setSelectedTest(index)
+    setSample(test.photo);setResult(undefined)
+    perform(async()=>{
+      setStatus('Classificando '+test.name+'...')
+      const output=await classify(test.photo,limit)
+      setStatus('Resultado: '+output.label+' | esperado no exemplo: '+test.expected+'.')
+    })
+  }
+  return <div className="sku-workspace">
+    <section className="card sku-welcome">
+      <div><span className="help-tag">TESTES GUIADOS · FEW-SHOT / SKU</span>
+        <h2>Ensine a IA a reconhecer produtos com poucas imagens</h2>
+        <p>O programa compara a foto com exemplos de cada classe, sem treinar um modelo do zero.
+          Escolha um conjunto pronto para ver tudo funcionando ou cadastre suas próprias imagens.</p></div>
+      <div className="sku-help-text"><strong>Como interpretar:</strong> similaridade maior significa mais parecido;
+        margem maior significa mais diferença entre a melhor classe e a segunda.
+        O limiar decide quando responder <strong>Desconhecido</strong>. Esses números não são porcentagens de certeza.</div>
+    </section>
+
+    <div className="sku-demo-grid">
+      {([
+        {id:'embalagens',title:'Frasco azul x caixa laranja',description:'Três referências de cada produto, duas imagens novas e uma lata desconhecida.'},
+        {id:'fixadores',title:'Porca x arruela',description:'Três referências de cada peça, duas imagens novas e um parafuso desconhecido.'},
+      ] as const).map(item=><article className="card sku-demo-card" key={item.id}>
+        <div><span className="help-tag">Exemplo incluído · imagens sintéticas</span><h3>{item.title}</h3><p>{item.description}</p></div>
+        <div className="sku-demo-actions">
+          <button className="primary" disabled={working} onClick={()=>runDemo(item.id,'DINOv2 Small')}>Testar DINOv2</button>
+          <button disabled={working} onClick={()=>runDemo(item.id,'DINOv3 ConvNeXt Tiny')}>Testar ConvNeXt Tiny</button>
+        </div>
+      </article>)}
+    </div>
+    <div className="card sku-note">
+      <strong>O que é DINOv3 ConvNeXt Tiny?</strong> É outro tipo de extrator visual DINOv3, baseado em uma rede convolucional (CNN).
+      Vale testar se reconhece as mesmas peças com boa velocidade e menos memória no seu computador.
+      Para usar, aceite o acesso do checkpoint em <strong>Config / Tokens → DINOv3 ConvNeXt Tiny</strong>.
+      O primeiro uso pode baixar os pesos. Os exemplos são ilustrações para experimentar — não substituem fotos industriais.
+    </div>
+
+    {status&&<div className="card sku-status" role="status">{working&&<span className="sku-activity" aria-hidden="true"/>}{status}</div>}
+
+    {demo&&<section className="card sku-loaded">
+      <div className="split"><div><h2>{demo.title} · imagens carregadas</h2><p>{demo.explanation}</p></div>
+        <span className="good">Referências: {demo.classes.reduce((sum,c)=>sum+c.photos.length,0)} fotos</span></div>
+      <div className="sku-reference-grid">{demo.classes.map(entry=><div key={entry.name} className="sku-reference-group">
+        <h3>{entry.name} <small>· {entry.photos.length} fotos de referência</small></h3>
+        <div className="sku-reference-photos">{entry.photos.map((p,i)=><img key={p.image_id} src={p.url} alt={entry.name+' referência '+(i+1)}/>)}</div>
+      </div>)}</div>
+      <h3>Experimente as três imagens de teste</h3>
+      <div className="sku-trial-grid">{demo.tests.map((test,i)=><button key={test.photo.image_id}
+        className={'sku-trial'+(selectedTest===i?' selected':'')} disabled={working}
+        onClick={()=>active?selectAndClassify(test,i):(setSample(test.photo),setSelectedTest(i),setResult(undefined))}>
+        <img src={test.photo.url} alt={'Teste '+test.name}/>
+        <strong>{test.name}</strong>
+        <small>{i===2?'Objeto não cadastrado':'Classe conhecida'} · {active?'Clique para classificar':'Selecione e registre o banco'}</small>
+      </button>)}</div>
+    </section>}
+
+    <div className="split-panels">
+      <section className="card"><h2>Cadastro de classes</h2>
+        <p className="muted">Também pode substituir as imagens do exemplo por fotos reais (1 a 10 por classe).</p>
+        <label>Modelo DINO<select value={model} disabled={working} onChange={e=>{setModel(e.target.value);setActive(false);setResult(undefined)}}>
+          {DINO.map(m=><option key={m}>{m}</option>)}</select></label>
+        {classes.map((entry,i)=><div key={i} className="sku-class-block">
+          <div className="class-entry"><input aria-label={'Nome da classe '+(i+1)} value={entry.name}
+            disabled={working} onChange={e=>edit(i,{name:e.target.value})}/>
+            <Files label={'Fotos · '+entry.photos.length} multiple change={files=>perform(async()=>
+              edit(i,{photos:await Promise.all(files.slice(0,10).map(upload))}))}/>
+            {classes.length>2&&<button disabled={working} onClick={()=>{setClasses(cs=>cs.filter((_,j)=>j!==i));setActive(false);setDemo(undefined)}}>Remover</button>}
+          </div>
+          {entry.photos.length>0&&<div className="sku-mini-photos">{entry.photos.map(p=><img key={p.image_id} src={p.url} alt={'Foto de '+entry.name}/>)}</div>}
+        </div>)}
+        <div className="toolbar"><button disabled={working||classes.length>=6} onClick={()=>{setClasses([...classes,{name:'',photos:[]}]);setActive(false);setDemo(undefined)}}>+ Classe</button>
+          <button className="primary" disabled={working||classes.some(c=>!c.name.trim()||!c.photos.length)}
+            onClick={()=>perform(async()=>{setStatus('Registrando '+model+'...');await registerBank(model,classes);setResult(undefined);setStatus('Banco registrado. Agora classifique uma imagem.')})}>Registrar banco</button>
+          <button disabled={working} onClick={()=>perform(async()=>{await api('/sku/clear',undefined,'DELETE');setActive(false);setResult(undefined);setStatus('Banco limpo.')})}>Limpar</button>
+        </div>
+      </section>
+      <section className="card">
+        <div className="split"><h2>Teste e similaridade</h2>{active&&<span className="good">Banco disponível · {model}</span>}</div>
+        <p className="muted">Ajuste o limiar se um produto desconhecido for classificado como um produto conhecido.</p>
+        <Range label="Limiar de desconhecido" value={limit} min={-1} max={1} set={v=>{setLimit(v);setResult(undefined)}}/>
+        <div className="toolbar">
+          <Files label="Imagem de teste" change={files=>perform(async()=>{setDemo(undefined);setSelectedTest(0);setSample(await upload(files[0]));setResult(undefined)})}/>
+          <button className="primary" disabled={working||!sample||!active} onClick={()=>perform(async()=>{
+            setStatus('Classificando imagem com '+model+'...');await classify(sample!,limit);setStatus('Classificação concluída.')
+          })}>Classificar</button>
+        </div>
+        {!active&&<p className="muted">Primeiro registre um banco ou escolha um teste pronto acima.</p>}
+        {sample&&<img className="sku-image" src={sample.url} alt="Amostra SKU"/>}
+        {result&&<><ClassResult value={result}/><p className="sku-interpret">
+          <strong>Classificação: {result.label}.</strong> Similaridade {result.similarity.toFixed(3)}, margem {result.margin.toFixed(3)}.
+          {elapsed!==undefined&&<> Inferência aproximada {elapsed.toFixed(0)} ms (inclui chamada à API).</>}
+          {demo&&<> Esperado neste teste: <strong>{demo.tests[selectedTest]?.expected||'—'}</strong>.</>}
+          {result.label==='Desconhecido'
+            ?' O resultado ficou abaixo do limiar definido. Não significa que o sistema provou que é uma nova classe.'
+            :' Esta é a classe mais semelhante dentre as cadastradas, não uma certeza absoluta.'}
+        </p></>}
+      </section>
+    </div>
   </div>
 }
 export function Webcam({settings,refIds,addRef,edit,task,onRound}:{settings:Settings,refIds:string[],addRef:(p:Photo)=>void,edit:(p:Photo)=>void,task:(fn:()=>Promise<void>)=>void,onRound:(r:Round)=>void}){
