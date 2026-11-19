@@ -1,0 +1,34 @@
+name: Build compiled SKU demos frontend (temporary)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/build-sku-assets-once.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feature/sku-demos-convnext-tiny'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify and compile interface
+        working-directory: frontend
+        run: npm ci && npm run build
+      - name: Commit compiled UI into branch
+        shell: bash
+        run: |
+          git add -A frontend/dist
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'build: package compiled Few-Shot examples'
+            git push origin HEAD:feature/sku-demos-convnext-tiny
+          fi
