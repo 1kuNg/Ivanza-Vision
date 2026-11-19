@@ -32,7 +32,7 @@ function ImagePane({url,view,adjust}:{url:string,view:View,adjust:(p:View)=>void
       e.preventDefault()
       e.stopPropagation()
       const v=viewRef.current
-      const nextZoom=Math.min(8,Math.max(1,v.zoom*Math.exp(-e.deltaY*.002)))
+      const nextZoom=Math.min(8,Math.max(.2,v.zoom*Math.exp(-e.deltaY*.002)))
       const factor=nextZoom/v.zoom
       const b=element!.getBoundingClientRect()
       const x=e.clientX-(b.left+b.width/2)
@@ -47,17 +47,17 @@ function ImagePane({url,view,adjust}:{url:string,view:View,adjust:(p:View)=>void
 
   function zoom(factor:number){
     const v=viewRef.current
-    const nextZoom=Math.min(8,Math.max(1,v.zoom*factor))
+    const nextZoom=Math.min(8,Math.max(.2,v.zoom*factor))
     const ratio=nextZoom/v.zoom
     adjust({zoom:nextZoom,x:v.x*ratio,y:v.y*ratio})
   }
   return <div className="zoom-shell">
-    <div className="zoom-toolbar"><small>Scroll na imagem: zoom · arraste para mover · duplo clique: ajustar</small>
+    <div className="zoom-toolbar"><small>100% = imagem inteira ajustada · scroll: zoom de 20% a 800% · arraste para mover · duplo clique: ajustar</small>
       <div className="zoom-actions">
-        <button type="button" aria-label="Diminuir zoom" onClick={()=>zoom(1/1.5)}>−</button>
-        <span aria-label="Nível de zoom">{Math.round(view.zoom*100)}%</span>
-        <button type="button" aria-label="Aumentar zoom" onClick={()=>zoom(1.5)}>+</button>
-        <button type="button" onClick={()=>adjust(defaultView)}>Ajustar</button>
+        <button type="button" aria-label="Diminuir zoom" disabled={view.zoom<=.2} onClick={()=>zoom(1/1.5)}>−</button>
+        <span aria-label="Nível de zoom" title="100% significa imagem ajustada à janela, não tamanho original">{Math.round(view.zoom*100)}%</span>
+        <button type="button" aria-label="Aumentar zoom" disabled={view.zoom>=8} onClick={()=>zoom(1.5)}>+</button>
+        <button type="button" title="Exibir a imagem inteira na área disponível" onClick={()=>adjust(defaultView)}>Ajustar à janela</button>
       </div>
     </div>
     <div ref={pane} className="image-pane" aria-label="Resultado com zoom independente da página"
