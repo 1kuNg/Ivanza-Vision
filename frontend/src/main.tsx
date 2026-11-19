@@ -6,7 +6,8 @@ import version from '../../VERSION?raw'
 import {Editor} from './canvas'
 import {Controls} from './controls'
 import {Results} from './results'
-import {Files,Guide,Sku,Webcam} from './screens'
+import {Files,Sku,Webcam} from './screens'
+import {Guide} from './help'
 import {api,DINO,DEPTH,GROUND,OCR,SAM,initial,upload,save,type Photo,type Round,type Settings,type System} from './api'
 import './style.css'
 
@@ -104,7 +105,7 @@ function App(){
   const configVisible=['Comparador','Pipelines','Webcam'].includes(page)
   return <div className="app">
     <header className="top"><div className="brand"><i>IV</i><div><strong>IVANZATECH</strong><span>VISION LAB <b>v{version.trim()}</b></span></div></div>
-      <nav>{pages.map(p=><button key={p} className={page===p?'current':''} onClick={()=>navigate(p)}>{p}</button>)}</nav>
+      <nav>{pages.map(p=><button key={p} className={page===p?'current':''} onClick={()=>navigate(p)}>{p==='Guia Industrial'?'Ajuda & Testes':p}</button>)}</nav>
       <div className="top-actions"><span className="hardware"><i/>{system?.device==='CUDA'?'CUDA · '+s.precision.toUpperCase():system?.device||'—'}</span>
         <button onClick={()=>setAssistant(!assistant)}>Assistente IA</button><button onClick={()=>setConfigOpen(true)}>Config / Tokens</button>
         <button title="Descarregar modelos" disabled={busy} onClick={()=>task(async()=>{await api('/system/vram/clear',{});await refresh();setToast({text:'VRAM e cache de modelos liberados.',error:false})})}>Limpar VRAM</button>
@@ -122,7 +123,7 @@ function App(){
           {runningModels.length>0?<AnalysisSkeleton models={runningModels}/>:pipelineRound&&pipelineRound.pipeline===pipeline&&<Results round={pipelineRound} s={s}/>}</>}
         <div hidden={page!=='Few-Shot / SKU'}><Sku settings={s} task={task}/></div>
         {page==='Webcam'&&<Webcam settings={s} refIds={refs.map(p=>p.image_id)} addRef={p=>preserveRefs([p])} edit={p=>setEditor(p)} task={task} onRound={setRound}/>}
-        {page==='Guia Industrial'&&<Guide/>}
+        {page==='Guia Industrial'&&<Guide onDemo={demo=>{pickExample(demo);setPage('Comparador')}} onPage={navigate} onPipeline={id=>{choosePipeline(id);setPage('Pipelines')}}/>}
       </main>
     </div>
     {toast&&<div className={'toast '+(toast.error?'error':'notice')} role={toast.error?'alert':'status'}>{toast.text}<button aria-label="Fechar notificação" onClick={()=>setToast(undefined)}>×</button></div>}
