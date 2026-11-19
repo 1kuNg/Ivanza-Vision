@@ -126,3 +126,46 @@ table th,table td{overflow-wrap:anywhere}
 .vision-lightbox .zoom-shell{flex:1;min-height:0;display:flex;flex-direction:column}
 .vision-lightbox .zoom-shell .image-pane{flex:1;min-height:0;height:100%}
 .vision-lightbox .image-pane img{width:100%;height:100%;max-height:none;object-fit:contain}
+
+
+/* Correcao: uma imagem grande nunca pode determinar o tamanho do visualizador.
+   A imagem preenche uma area fixa e usa contain: 100% significa caber inteira.
+   A escala do zoom so transforma pixels dentro dessa area, sem mover a pagina. */
+.zoom-shell .image-pane{
+  display:block;
+  width:100%;
+  height:clamp(175px,24vw,340px);
+  min-height:0;
+  min-width:0;
+  position:relative;
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+.deep-grid .zoom-shell .image-pane{height:clamp(290px,49vh,620px)}
+.zoom-shell .image-pane img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  min-height:0;
+  max-height:none;
+  object-fit:contain;
+  object-position:center;
+  display:block;
+}
+.vision-lightbox .zoom-shell{
+  flex:1 1 0;
+  min-height:0;
+  height:0;
+}
+.vision-lightbox .zoom-shell .image-pane{
+  flex:1 1 0;
+  height:0;
+  min-height:0;
+}
+.vision-lightbox .zoom-toolbar{flex-shrink:0}
+.zoom-actions span{width:57px}
+@media(max-width:600px){
+  .zoom-shell .image-pane{height:clamp(200px,40vh,390px)}
+  .vision-lightbox .zoom-shell .image-pane{height:0}
+}
