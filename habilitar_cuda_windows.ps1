@@ -31,8 +31,16 @@ if ($answer -notin @('s','S','sim','SIM','Sim')) {
 }
 $url = 'https://download.pytorch.org/whl/' + $Cuda
 Write-Host ('[INSTALANDO] PyTorch e torchvision de ' + $url) -ForegroundColor Cyan
-& $python -m pip install --upgrade --force-reinstall 'torch>=2.5.1,<3' 'torchvision>=0.20.1,<1' --index-url $url --disable-pip-version-check
-if ($LASTEXITCODE -ne 0) {
+# Pip pode escrever avisos no stderr mesmo quando funciona. Capturamos o codigo de saida.
+$previousErrorAction = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    & $python -m pip install --upgrade --force-reinstall 'torch>=2.5.1,<3' 'torchvision>=0.20.1,<1' --index-url $url --disable-pip-version-check
+    $pipExitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorAction
+}
+if ($pipExitCode -ne 0) {
     throw 'Falha ao instalar PyTorch CUDA. Confira internet, espaco no disco e compatibilidade do Python.'
 }
 Write-Host ''
