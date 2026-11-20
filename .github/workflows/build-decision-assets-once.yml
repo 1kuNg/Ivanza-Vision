@@ -32,3 +32,5 @@ jobs:
             git commit -m 'build: compile industrial decision guide interface'
             git push origin HEAD:feature/guia-decisao-modelos-industriais
           fi
+
+# Refresh compiled assets after improving direct model selection.
