@@ -1,0 +1,28 @@
+name: Validate CPU/GPU switching
+on:
+  pull_request:
+    paths:
+      - 'backend/model_manager.py'
+      - 'backend/api.py'
+      - 'extra_models_core.py'
+      - 'ci/device_manager_smoke.py'
+      - '.github/workflows/test-device-switch.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/model_manager.py'
+      - 'backend/api.py'
+      - 'extra_models_core.py'
+      - 'ci/device_manager_smoke.py'
+jobs:
+  cpu-gpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check Python syntax
+        run: python -m compileall -q backend/model_manager.py backend/api.py extra_models_core.py ci/device_manager_smoke.py
+      - name: Run synthetic device switch tests
+        run: python ci/device_manager_smoke.py

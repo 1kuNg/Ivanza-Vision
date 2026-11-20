@@ -88,6 +88,16 @@ def status(request:Request):
                 llm_configured=bool(c['key']), base_url=c['base_url'], llm_model=c['model'])
 
 
+class DeviceChoice(Strict):
+    device: Literal['auto', 'cpu', 'cuda']
+
+
+@app.post('/api/system/device')
+def set_device(data: DeviceChoice):
+    """Escolha hardware de forma serializada; troca espera inferência atual acabar."""
+    return manager.set_device(data.device)
+
+
 @app.post('/api/system/vram/clear')
 def clear():
     manager.clear()

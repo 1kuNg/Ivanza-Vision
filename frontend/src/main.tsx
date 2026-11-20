@@ -8,7 +8,7 @@ import {Controls} from './controls'
 import {Results} from './results'
 import {Files,Sku,Webcam} from './screens'
 import {Guide} from './help'
-import {api,DINO,DEPTH,GROUND,OCR,SAM,initial,upload,save,type Photo,type Round,type Settings,type System} from './api'
+import {api,DINO,DEPTH,GROUND,OCR,SAM,initial,upload,save,type Photo,type Round,type Settings,type System,type DevicePreference} from './api'
 import './style.css'
 
 const commandExamples = [
@@ -35,7 +35,7 @@ function App(){
   const [sample,setSample]=useState<Photo>(),[refs,setRefs]=useState<Photo[]>([]),[examples,setExamples]=useState<Photo[]>([])
   const [round,setRound]=useState<Round>(),[compare,setCompare]=useState<Round>(),[pipelineRound,setPipelineRound]=useState<Round>()
   const [pipeline,setPipeline]=useState('grounding_ocr'),[entry,setEntry]=useState(true),[collapsed,setCollapsed]=useState(false),[editor,setEditor]=useState<Photo>()
-  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[configOpen,setConfigOpen]=useState(false),[assistant,setAssistant]=useState(false)
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[configOpen,setConfigOpen]=useState(false),[gpuOpen,setGpuOpen]=useState(false),[assistant,setAssistant]=useState(false)
   const [skuDemoRequest,setSkuDemoRequest]=useState<string>()
   const [runningModels,setRunningModels]=useState<string[]>([]),[toast,setToast]=useState<{text:string,error:boolean}>()
   const pending=useRef(false)
@@ -47,6 +47,13 @@ function App(){
     if(pending.current)return
     pending.current=true;setBusy(true);setMessage('')
     void fn().catch(e=>setMessage(e instanceof Error?e.message:String(e))).finally(()=>{pending.current=false;setBusy(false)})
+  }
+  function switchDevice(next:DevicePreference){
+    task(async()=>{
+      await api('/system/device',{device:next})
+      await refresh()
+      setToast({text:'Dispositivo alterado. Os modelos serão carregados novamente na próxima análise.',error:false})
+    })
   }
   function pickPhoto(photo:Photo){setSample(photo);patch(resetMarks)}
   function preserveRefs(photos:Photo[]){
@@ -107,7 +114,17 @@ function App(){
   return <div className="app">
     <header className="top"><div className="brand"><i>IV</i><div><strong>IVANZATECH</strong><span>VISION LAB <b>v{version.trim()}</b></span></div></div>
       <nav>{pages.map(p=><button key={p} className={page===p?'current':''} onClick={()=>navigate(p)}>{p==='Guia Industrial'?'Ajuda & Testes':p}</button>)}</nav>
-      <div className="top-actions"><span className="hardware"><i/>{system?.device==='CUDA'?'CUDA · '+s.precision.toUpperCase():system?.device||'—'}</span>
+      <div className="top-actions">
+        <label className="device-control" title="Escolha CPU ou GPU para os modelos PyTorch">
+          <span className="hardware"><i/>{system?.device==='CUDA'?'GPU CUDA · '+s.precision.toUpperCase():system?.device||'—'}</span>
+          <select aria-label="Escolher dispositivo de execução" value={system?.device_preference||'auto'}
+            disabled={busy||!system} onChange={e=>switchDevice(e.target.value as DevicePreference)}>
+            <option value="auto">Auto</option>
+            <option value="cpu">CPU</option>
+            <option value="cuda" disabled={!system?.cuda_available}>GPU NVIDIA</option>
+          </select>
+        </label>
+        <button title="Diagnosticar GPU e PyTorch CUDA" onClick={()=>setGpuOpen(true)}>Diagnóstico GPU</button>
         <button onClick={()=>setAssistant(!assistant)}>Assistente IA</button><button onClick={()=>setConfigOpen(true)}>Config / Tokens</button>
         <button title="Descarregar modelos" disabled={busy} onClick={()=>task(async()=>{await api('/system/vram/clear',{});await refresh();setToast({text:'VRAM e cache de modelos liberados.',error:false})})}>Limpar VRAM</button>
         <button disabled={busy} onClick={()=>task(exportRecipe)}>Exportar Receita</button>
@@ -130,6 +147,7 @@ function App(){
     {toast&&<div className={'toast '+(toast.error?'error':'notice')} role={toast.error?'alert':'status'}>{toast.text}<button aria-label="Fechar notificação" onClick={()=>setToast(undefined)}>×</button></div>}
     {editor&&<Editor photo={editor} settings={s} patch={patch} close={()=>setEditor(undefined)}/>}
     {configOpen&&<ConfigModal system={system} close={()=>setConfigOpen(false)} refresh={refresh}/>}
+    {gpuOpen&&<GpuModal system={system} close={()=>setGpuOpen(false)} refresh={refresh}/>}
     {assistant&&<Assistant current={round} s={s} close={()=>setAssistant(false)} confirm={confirm} pipelines={system?.pipelines||{}}/>}
   </div>
 }
@@ -141,6 +159,38 @@ function AnalysisSkeleton({models}:{models:string[]}){
       <div className="skeleton-image"/><div className="skeleton-metrics"/>
     </article>)}
   </section>
+}
+
+function GpuModal({system,close,refresh}:{system?:System,close:()=>void,refresh:()=>Promise<void>}){
+  const [loading,setLoading]=useState(false),[error,setError]=useState('')
+  const used=(system?.vram?.allocated||0)/1048576
+  const total=(system?.vram?.total||0)/1048576
+  async function update(){
+    setLoading(true);setError('')
+    try{await refresh()}catch(e){setError(String(e))}finally{setLoading(false)}
+  }
+  return <div className="modal-shade" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
+    <section className="modal gpu-modal" role="dialog" aria-modal="true" aria-label="Diagnóstico da GPU NVIDIA">
+      <div className="split"><h2>Hardware · CPU / GPU NVIDIA</h2><button aria-label="Fechar diagnóstico" onClick={close}>×</button></div>
+      <p>O Lab usa o <strong>PyTorch dentro da pasta .venv</strong>, não o Python global do Windows. Ter uma placa NVIDIA instalada não garante que a versão do PyTorch tenha CUDA.</p>
+      <div className="gpu-facts">
+        <div><small>Placa NVIDIA detectada</small><strong>{system?.gpu_name||'Não identificada pelo diagnóstico'}</strong></div>
+        <div><small>Driver NVIDIA</small><strong>{system?.nvidia_driver||'Não informado'}</strong></div>
+        <div><small>Versão do PyTorch (.venv)</small><strong>{system?.torch_version||'—'}</strong></div>
+        <div><small>CUDA compilada no PyTorch</small><strong>{system?.torch_cuda_version||'Não (CPU-only)'}</strong></div>
+        <div><small>CUDA disponível para inferência</small><strong className={system?.cuda_available?'good':'gpu-unavailable'}>{system?.cuda_available?'Sim':'Não'}</strong></div>
+        <div><small>Dispositivo selecionado</small><strong>{system?.device||'—'} · {system?.device_preference||'auto'}</strong></div>
+      </div>
+      {system?.cuda_available?<p className="gpu-success"><strong>CUDA pronta.</strong> Selecione GPU NVIDIA no topo. Modelos serão recarregados na GPU quando você executar a próxima análise. VRAM alocada: {used.toFixed(0)} / {total.toFixed(0)} MiB.</p>:<div className="gpu-warning">
+        <strong>Por que aparece CPU?</strong><p>{system?.cuda_issue||'Diagnóstico indisponível.'}</p>
+        <p><strong>Para habilitar a NVIDIA:</strong> feche o Lab e execute <code>habilitar_cuda_windows.cmd</code> na pasta do programa. Ele instalará o PyTorch CUDA dentro da <code>.venv</code>, pedirá sua confirmação e testará a GPU. Depois abra <code>iniciar_windows.bat</code> novamente.</p>
+        <p>Você também pode escolher outra compilação CUDA com <code>habilitar_cuda_windows.cmd -Cuda cu128</code>. A opção padrão usa CUDA 12.6; a compatibilidade depende da placa e do driver.</p>
+      </div>}
+      <p className="muted">A alternância é dinâmica quando CUDA está disponível. O RapidOCR desta versão continua em CPU, mesmo com GPU selecionada. Não altere pacotes Python enquanto o Lab estiver aberto.</p>
+      {error&&<p role="alert" className="error">{error}</p>}
+      <div className="toolbar"><button disabled={loading} onClick={()=>void update()}>{loading?'Verificando…':'Atualizar diagnóstico'}</button><button className="primary" onClick={close}>Fechar</button></div>
+    </section>
+  </div>
 }
 
 function ConfigModal({system,close,refresh}:{system?:System,close:()=>void,refresh:()=>Promise<void>}){
