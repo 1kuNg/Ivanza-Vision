@@ -24,7 +24,8 @@ export const initial:Settings={models:[DINO[0]],precision:'fp16',resolution:224,
 export type ModelResult = {error?:string,overlay?:string,details?:Record<string,string>,metrics?:Record<string,number|number[]|boolean[]>,
   choices?:number[],candidates?:number[][],rows?:Record<string,unknown>[],positions?:Record<string,unknown>[],timing_ms?:Record<string,number>}
 export type Round={run_id:string,sample_id:string,benchmark:{model:string,inference_ms:number|null,load_ms?:number,device:string|null,resolution?:number|null,status:string}[],results:Record<string,ModelResult>,pipeline?:string}
-export type System={version:string,device:string,loaded_models:string[],vram?:{allocated:number,reserved:number,total:number},hf_configured:boolean,llm_configured:boolean,base_url:string,llm_model:string,pipelines:Record<string,string>}
+export type DevicePreference='auto'|'cpu'|'cuda'
+export type System={version:string,device:string,device_preference:DevicePreference,cuda_available:boolean,torch_version:string,torch_cuda_version?:string|null,cuda_built:boolean,gpu_name?:string|null,nvidia_driver?:string|null,nvidia_detected:boolean,cuda_issue:string,model_devices:Record<string,string>,loaded_models:string[],vram?:{allocated:number,reserved:number,total:number}|null,hf_configured:boolean,llm_configured:boolean,base_url:string,llm_model:string,pipelines:Record<string,string>}
 export type Prediction={label:string,similarity:number,margin:number,by_class:Record<string,number>}
 export async function api<T>(path:string,data?:unknown,method=data===undefined?'GET':'POST'):Promise<T>{
   const response=await fetch('/api'+path,{method,headers:data && !(data instanceof FormData)?{'Content-Type':'application/json'}:undefined,
