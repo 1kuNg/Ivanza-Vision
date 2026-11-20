@@ -7,6 +7,7 @@ type Navigation={
   onSkuDemo:(demo:string)=>void
   onPipeline:(id:string)=>void
   onConvnextDemo:()=>void
+  onSelectModel:(model:string)=>void
 }
 
 const tasks:{id:VisionTask,icon:string,title:string,subtitle:string}[]=[
@@ -49,7 +50,7 @@ const decisions:Record<VisionTask,{
     observe:'Se cada caixa cobre o objeto correto, se há caixas repetidas e se algum objeto não foi encontrado.',
     avoid:'Não conhece necessariamente cada peça industrial específica; não garante contagem exata. Caixa não é máscara nem classificação de defeito.',
     challenge:'Coloque três objetos na mesa; retire um e observe se a contagem das caixas muda corretamente.',
-    button:'Abrir Grounding DINO',action:nav=>nav.onPage('Comparador')
+    button:'Abrir Grounding DINO',action:nav=>nav.onSelectModel('Grounding DINO Tiny')
   },
   segment:{
     primary:'SAM 2.1 Tiny',secondary:'Grounding → SAM quando precisa localizar primeiro',
@@ -58,7 +59,7 @@ const decisions:Record<VisionTask,{
     observe:'Máscara, peça isolada e se a borda realmente acompanha todo o objeto.',
     avoid:'Segmentar não equivale a identificar o produto, aprovar qualidade ou detectar peça faltante. Pontos errados podem recortar o fundo.',
     challenge:'Recorte uma ferramenta, coloque outro objeto sobre ela e repita; veja quando a máscara falha.',
-    button:'Abrir o Comparador para SAM',action:nav=>nav.onPage('Comparador')
+    button:'Abrir o Comparador com SAM',action:nav=>nav.onSelectModel('SAM 2.1 Tiny')
   },
   read:{
     primary:'RapidOCR',secondary:'Grounding DINO → RapidOCR para localizar a etiqueta primeiro',
@@ -67,7 +68,7 @@ const decisions:Record<VisionTask,{
     observe:'Texto reconhecido, confiança, correspondência com o texto impresso e resultado da regex.',
     avoid:'Regex não verifica se o lote existe. Leitura de código de barras/QR não é a mesma coisa que OCR textual; caracteres parecidos podem ser confundidos.',
     challenge:'Teste LOTE-1234, LOTE-ABC e uma etiqueta pouco iluminada para perceber erros de leitura.',
-    button:'Abrir o Comparador para OCR',action:nav=>nav.onPage('Comparador')
+    button:'Abrir o Comparador com OCR',action:nav=>nav.onSelectModel('RapidOCR')
   },
   state:{
     primary:'SigLIP 2 Base',secondary:'Few-Shot quando há exemplos reais por classe',
@@ -76,7 +77,7 @@ const decisions:Record<VisionTask,{
     observe:'Qual descrição recebeu maior pontuação em várias fotos de cada condição.',
     avoid:'As pontuações não são porcentagens calibradas nem certificação de segurança. Frases vagas e estados muito parecidos podem confundir.',
     challenge:'Fotografe uma mesa organizada e desorganizada e compare os mesmos prompts nas duas fotos.',
-    button:'Abrir o Comparador para SigLIP',action:nav=>nav.onPage('Comparador')
+    button:'Abrir o Comparador com SigLIP',action:nav=>nav.onSelectModel('SigLIP 2 Base')
   },
   depth:{
     primary:'Depth Anything V2 Small',secondary:'Depth → SAM para tentar recortar um objeto próximo',
@@ -85,7 +86,7 @@ const decisions:Record<VisionTask,{
     observe:'Mapa de profundidade e mudança entre as imagens ao aproximar um objeto.',
     avoid:'Não mede milímetros ou volume real. O valor do mapa não é uma distância física calibrada; superfícies reflexivas podem atrapalhar.',
     challenge:'Mova uma ferramenta para perto e longe da webcam e compare os mapas.',
-    button:'Abrir o Comparador para profundidade',action:nav=>nav.onPage('Comparador')
+    button:'Abrir o Comparador com profundidade',action:nav=>nav.onSelectModel('Depth Anything V2 Small')
   },
   mixed:{
     primary:'Um dos 4 pipelines já disponíveis',secondary:'Grounding + recorte + SKU por item seria uma evolução futura',
