@@ -10,6 +10,7 @@ type Props = {
   onPipeline:(id:string)=>void
   onSkuDemo:(id:string)=>void
   onConvnextDemo:()=>void
+  onSelectModel:(model:string)=>void
 }
 
 type Test = {
@@ -183,7 +184,7 @@ const tabs = [
 ] as const
 type Tab = typeof tabs[number][0]
 
-export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props){
+export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo,onSelectModel}:Props){
   const [tab,setTab]=useState<Tab>('inicio')
   const [search,setSearch]=useState('')
   const [category,setCategory]=useState('Todos')
@@ -227,7 +228,7 @@ export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props)
       </div>
     </div>}
 
-    {tab==='decidir'&&<ChoosingGuide onPage={onPage} onDemo={onDemo} onSkuDemo={onSkuDemo} onPipeline={onPipeline} onConvnextDemo={onConvnextDemo}/>}
+    {tab==='decidir'&&<ChoosingGuide onPage={onPage} onDemo={onDemo} onSkuDemo={onSkuDemo} onPipeline={onPipeline} onConvnextDemo={onConvnextDemo} onSelectModel={onSelectModel}/>}
     {tab==='arquiteturas'&&<ArchitecturesGuide onConvnextDemo={onConvnextDemo} onSkuDemo={onSkuDemo}/>}
     {tab==='validar'&&<ValidationGuide/>}
 
@@ -238,7 +239,11 @@ export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props)
         <div className="help-model-head"><span className="help-symbol">{model.symbol}</span><div><h3>{model.name}</h3><strong className="help-subtitle">{model.nickname}</strong></div></div>
         <p>{model.does}</p>
         <div className="help-card-limit"><strong>Limitação importante:</strong> {model.note}</div><details><summary>Como testar e interpretar</summary><p><strong>Teste rápido:</strong> {model.try}</p><p><strong>O que olhar:</strong> {model.read}</p></details>
-        <button onClick={()=>model.name==='DINOv3 ConvNeXt Tiny'?onConvnextDemo():onPage('Comparador')}>{model.name==='DINOv3 ConvNeXt Tiny'?'Abrir comparação pronta':'Abrir Comparador'}</button>
+        <button onClick={()=>model.name==='DINOv3 ConvNeXt Tiny'?onConvnextDemo():onSelectModel(({
+          DINOv2:'DINOv2 Small',DINOv3:'DINOv3 Small','SAM 2.1':'SAM 2.1 Tiny',
+          'Grounding DINO':'Grounding DINO Tiny','SigLIP 2':'SigLIP 2 Base',
+          'Depth Anything V2':'Depth Anything V2 Small',RapidOCR:'RapidOCR'
+        } as Record<string,string>)[model.name]||'DINOv2 Small')}>{model.name==='DINOv3 ConvNeXt Tiny'?'Abrir comparação pronta':'Abrir com este modelo'}</button>
       </article>)}</div>
       {!shownModels.length&&<p>Nenhum modelo encontrado. Tente outra palavra.</p>}
     </div>}
