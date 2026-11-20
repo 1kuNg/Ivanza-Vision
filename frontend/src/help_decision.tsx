@@ -154,7 +154,7 @@ export function ChoosingGuide(nav:Navigation){
     <div className="card help-advice">
       <h3>Uma imagem com vários produtos ao mesmo tempo</h3>
       <p>O <strong>Few-Shot atual classifica a foto inteira</strong>. Para identificar separadamente dez produtos em uma esteira, a estratégia seria localizar cada um com Grounding DINO (ou outro detector), recortar as caixas e classificar cada recorte por Few-Shot. <strong>Esse fluxo completo ainda não é automático nesta versão.</strong></p>
-      <button onClick={()=>{setChosen('find');window.scrollTo({top:0,behavior:'smooth'})}}>Entender a etapa de localização</button>
+      <button onClick={()=>setChosen('find')}>Entender a etapa de localização</button>
     </div>
     <button onClick={()=>setShowAll(!showAll)} aria-expanded={showAll}>{showAll?'Ocultar':'Ver'} tabela resumida de todos os modelos</button>
     {showAll&&<div className="table-scroll"><table><thead><tr>
@@ -166,7 +166,7 @@ export function ChoosingGuide(nav:Navigation){
 export function ArchitecturesGuide({onConvnextDemo,onSkuDemo}:Pick<Navigation,'onConvnextDemo'|'onSkuDemo'>){
   return <div className="decision-guide">
     <h2>ConvNeXt Tiny, Transformer e Few-Shot: qual a diferença?</h2>
-    <p>**Few-Shot não é uma terceira arquitetura.** É a maneira de classificar com poucas fotos usando as características produzidas por um backbone DINO. Esse backbone pode ser DINOv2 Small, DINOv3 Small (Transformer) ou DINOv3 ConvNeXt Tiny (CNN).</p>
+    <p><strong>Few-Shot não é uma terceira arquitetura.</strong> É a maneira de classificar com poucas fotos usando as características produzidas por um backbone DINO. Esse backbone pode ser DINOv2 Small, DINOv3 Small (Transformer) ou DINOv3 ConvNeXt Tiny (CNN).</p>
     <div className="arch-compare">
       <section className="card arch-item">
         <span className="help-tag">CNN · REDE CONVOLUCIONAL</span>
