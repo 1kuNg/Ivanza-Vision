@@ -1,5 +1,6 @@
 import {useState} from 'react'
 import {Guide as TechnicalGuide} from './screens'
+import {ChoosingGuide,ArchitecturesGuide,ValidationGuide} from './help_decision'
 
 type Page = 'Comparador' | 'Pipelines' | 'Few-Shot / SKU' | 'Webcam'
 type Demo = 'painel' | 'bandeja'
@@ -177,8 +178,8 @@ const TERMS = [
 
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const tabs = [
-  ['inicio','Comece aqui'],['modelos','O que cada IA faz'],['pipelines','Pipelines explicados'],
-  ['testes','Testes para experimentar'],['interpretar','Como ler os resultados'],['tecnico','Guia técnico'],
+  ['inicio','Comece aqui'],['decidir','Qual modelo escolher?'],['modelos','O que cada IA faz'],['arquiteturas','CNN x Transformer'],['pipelines','Pipelines explicados'],
+  ['testes','Testes para experimentar'],['interpretar','Como ler os resultados'],['validar','Limites & validação'],['tecnico','Guia técnico'],
 ] as const
 type Tab = typeof tabs[number][0]
 
@@ -218,13 +219,17 @@ export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props)
       <div className="card help-advice"><h3>Qual modelo usar?</h3>
         <p><strong>Mudou alguma coisa?</strong> DINO. <strong>Quero separar o objeto do fundo?</strong> SAM. <strong>Quero encontrar uma peça pelo nome?</strong> Grounding DINO. <strong>Quero ler uma etiqueta?</strong> RapidOCR.</p>
         <p><strong>Quero comparar a foto com uma frase?</strong> SigLIP 2. <strong>Quero ver perto e longe?</strong> Depth Anything. <strong>Quero combinar várias etapas?</strong> Abra Pipelines explicados.</p>
-        <button onClick={()=>setTab('modelos')}>Entender todos os modelos</button>
+        <div className="toolbar"><button className="primary" onClick={()=>setTab('decidir')}>Me ajude a escolher</button><button onClick={()=>setTab('modelos')}>Entender todos os modelos</button></div>
       </div>
       <div className="card help-advice"><h3>Antes de confiar no resultado</h3>
         <p>Fotografe com luz estável, procure manter o mesmo enquadramento e teste <strong>fotos normais e fotos com defeito</strong>. Uma diferença visual não é necessariamente uma falha de qualidade.</p>
-        <button onClick={()=>setTab('interpretar')}>Aprender a interpretar números e mapas</button>
+        <div className="toolbar"><button onClick={()=>setTab('interpretar')}>Aprender a interpretar números e mapas</button><button onClick={()=>setTab('validar')}>Entender os limites para uso industrial</button></div>
       </div>
     </div>}
+
+    {tab==='decidir'&&<ChoosingGuide onPage={onPage} onDemo={onDemo} onSkuDemo={onSkuDemo} onPipeline={onPipeline} onConvnextDemo={onConvnextDemo}/>}
+    {tab==='arquiteturas'&&<ArchitecturesGuide onConvnextDemo={onConvnextDemo} onSkuDemo={onSkuDemo}/>}
+    {tab==='validar'&&<ValidationGuide/>}
 
     {tab==='modelos'&&<div className="help-content">
       <div className="help-heading"><div><h2>O que cada inteligência artificial faz?</h2><p className="muted">Pense em cada modelo como uma ferramenta diferente.</p></div>
@@ -232,7 +237,7 @@ export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props)
       <div className="help-cards">{shownModels.map(model=><article className="card help-card" key={model.name}>
         <div className="help-model-head"><span className="help-symbol">{model.symbol}</span><div><h3>{model.name}</h3><strong className="help-subtitle">{model.nickname}</strong></div></div>
         <p>{model.does}</p>
-        <details><summary>Como testar e interpretar</summary><p><strong>Teste rápido:</strong> {model.try}</p><p><strong>O que olhar:</strong> {model.read}</p><p><strong>Atenção:</strong> {model.note}</p></details>
+        <div className="help-card-limit"><strong>Limitação importante:</strong> {model.note}</div><details><summary>Como testar e interpretar</summary><p><strong>Teste rápido:</strong> {model.try}</p><p><strong>O que olhar:</strong> {model.read}</p></details>
         <button onClick={()=>model.name==='DINOv3 ConvNeXt Tiny'?onConvnextDemo():onPage('Comparador')}>{model.name==='DINOv3 ConvNeXt Tiny'?'Abrir comparação pronta':'Abrir Comparador'}</button>
       </article>)}</div>
       {!shownModels.length&&<p>Nenhum modelo encontrado. Tente outra palavra.</p>}
@@ -244,7 +249,7 @@ export function Guide({onDemo,onPage,onPipeline,onSkuDemo,onConvnextDemo}:Props)
       {shownPipelines.map(p=><article className="card help-pipeline" key={p.id}>
         <div className="help-pipeline-top"><div><span className="help-tag">Pipeline disponível</span><h3>{p.title}</h3><p className="help-subtitle">{p.nickname}</p></div><button className="primary" onClick={()=>onPipeline(p.id)}>Abrir pipeline</button></div>
         <div className="help-stages">{p.stages.map((step,i)=><div key={step}><span className="help-step">{i+1}</span><p>{step}</p></div>)}</div>
-        <p><strong>Onde usar na indústria:</strong> {p.uses}</p>
+        <p><strong>Onde usar na indústria:</strong> {p.uses}</p><p className="help-pipeline-warning"><strong>Quando não usar:</strong> {p.warning}</p>
         <details><summary>Teste simples, como interpretar e limites</summary>
           <p><strong>Experimente:</strong> {p.try}</p><p><strong>O que observar:</strong> {p.watch}</p><p><strong>Importante:</strong> {p.warning}</p>
         </details>
