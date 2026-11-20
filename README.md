@@ -20,7 +20,8 @@ No Linux, execute `bash iniciar_linux.sh`. O ambiente Python é isolado em `.ven
   - O DINOv3 ConvNeXt Tiny requer acesso ao próprio checkpoint em **Config / Tokens → DINOv3 ConvNeXt Tiny**; a primeira execução pode baixar os pesos.
   - Na **Ajuda & Testes** também há um botão para comparar **DINOv2 x ConvNeXt Tiny** no mesmo painel com peça faltando.
 - **Webcam**. A câmera pertence ao computador que executa o servidor. Capture referências, analise o quadro mais recente ou ative o intervalo contínuo. A captura MJPEG é independente da inferência.
-- **Guia Industrial**. Matriz comparativa, licenças e casos técnicos com busca.
+- **Ajuda & Testes (para iniciantes)**. Na aba **Qual modelo escolher?**, selecione um problema (anomalia, SKU, localização de objetos, segmentação, leitura de texto, estado visual, profundidade ou pipeline). O programa explica o modelo recomendado, o que preparar, como avaliar, limites, um teste e o botão para abrir a bancada. Em **CNN x Transformer**, compare DINOv3 ConvNeXt Tiny e DINOv3 Small visualmente, com as resoluções do mapa e diferenças do Few-Shot. Em **Limites & validação**, siga o roteiro de amostras reais, falsos positivos/negativos, desconhecidos, latência e integração industrial.
+- **Guia técnico**. A antiga matriz de modelos, licenças e casos industriais continua disponível, mas separada das explicações simplificadas.
 
 Para DINOv3, aceite os termos do checkpoint no Hugging Face e teste um token de leitura em **Config / Tokens**. O teste mantém a credencial na sessão. **Salvar no perfil local** usa o armazenamento oficial do Hugging Face.
 

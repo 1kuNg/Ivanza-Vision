@@ -124,7 +124,7 @@ function App(){
           {runningModels.length>0?<AnalysisSkeleton models={runningModels}/>:pipelineRound&&pipelineRound.pipeline===pipeline&&<Results round={pipelineRound} s={s}/>}</>}
         <div hidden={page!=='Few-Shot / SKU'}><Sku settings={s} task={task} requestedDemo={skuDemoRequest} onHandled={()=>setSkuDemoRequest(undefined)}/></div>
         {page==='Webcam'&&<Webcam settings={s} refIds={refs.map(p=>p.image_id)} addRef={p=>preserveRefs([p])} edit={p=>setEditor(p)} task={task} onRound={setRound}/>}
-        {page==='Guia Industrial'&&<Guide onDemo={demo=>{pickExample(demo);setPage('Comparador')}} onPage={navigate} onPipeline={id=>{choosePipeline(id);setPage('Pipelines')}} onSkuDemo={id=>{setSkuDemoRequest(id);setPage('Few-Shot / SKU')}} onConvnextDemo={()=>{pickExample('painel');patch({models:[DINO[0],DINO[2]],resolution:384});setPage('Comparador')}}/>}
+        {page==='Guia Industrial'&&<Guide onDemo={demo=>{pickExample(demo);setPage('Comparador')}} onPage={navigate} onPipeline={id=>{choosePipeline(id);setPage('Pipelines')}} onSkuDemo={id=>{setSkuDemoRequest(id);setPage('Few-Shot / SKU')}} onConvnextDemo={()=>{pickExample('painel');patch({models:[DINO[0],DINO[2]],resolution:384});setPage('Comparador')}} onSelectModel={name=>{patch({models:[name]});setPage('Comparador')}}/>}
       </main>
     </div>
     {toast&&<div className={'toast '+(toast.error?'error':'notice')} role={toast.error?'alert':'status'}>{toast.text}<button aria-label="Fechar notificação" onClick={()=>setToast(undefined)}>×</button></div>}
