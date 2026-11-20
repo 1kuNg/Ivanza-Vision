@@ -25,6 +25,35 @@ No Linux, execute `bash iniciar_linux.sh`. O ambiente Python é isolado em `.ven
 
 Para DINOv3, aceite os termos do checkpoint no Hugging Face e teste um token de leitura em **Config / Tokens**. O teste mantém a credencial na sessão. **Salvar no perfil local** usa o armazenamento oficial do Hugging Face.
 
+## CPU, GPU NVIDIA e troca dinâmica
+
+O indicador no topo mostra **o dispositivo ativo do PyTorch**, não apenas a existência física de uma placa NVIDIA.
+
+- **Auto:** usa CUDA quando `torch.cuda.is_available()` é verdadeiro; senão utiliza CPU.
+- **CPU:** força execução na CPU, mesmo que exista GPU compatível.
+- **GPU NVIDIA:** força CUDA. Esta opção só fica disponível quando o PyTorch instalado na pasta `.venv` consegue acessar a GPU.
+- A troca **não reinicia o servidor**. Ela espera uma análise ativa terminar, libera os modelos e os recarrega no novo dispositivo na análise seguinte. As fotos e resultados já exibidos permanecem. A primeira análise após a mudança pode demorar mais.
+- **RapidOCR** usa ONNX Runtime CPU nesta versão; a seleção da GPU se aplica aos modelos PyTorch (DINO, SAM, Grounding DINO, Depth Anything e SigLIP).
+- **Diagnóstico GPU**, no topo, informa placa, versão do driver quando disponível, compilação CUDA do PyTorch e o motivo mais provável de não haver CUDA.
+
+### Preparar PyTorch CUDA no Windows
+
+Se o computador tem placa NVIDIA, mas o Lab mostra apenas CPU, o PyTorch dentro da `.venv` pode estar instalado **sem CUDA**. A instalação de outro Python ou de ferramentas CUDA no sistema **não altera automaticamente** a versão de PyTorch da `.venv`.
+
+1. Instale os drivers NVIDIA adequados à GPU e execute `nvidia-smi` no terminal para verificar se o driver responde.
+2. Feche o Ivanza Vision Lab.
+3. Na pasta do programa, execute **`habilitar_cuda_windows.cmd`**. Ele oferece a instalação do PyTorch CUDA 12.6 apenas na `.venv` e pede confirmação, sem modificar o Python global.
+4. Se o driver e a placa exigirem outra variante CUDA, o comando `habilitar_cuda_windows.cmd -Cuda cu128` seleciona CUDA 12.8. Confira a compatibilidade no [guia oficial PyTorch](https://pytorch.org/get-started/locally/).
+5. Depois da instalação, abra `iniciar_windows.bat` e selecione **Auto** ou **GPU NVIDIA** no topo.
+
+A instalação CUDA pode baixar vários gigabytes e exige internet. Não execute o instalador enquanto o Lab estiver aberto. Se CUDA continuar indisponível, confira o diagnóstico antes de reinstalar.
+
+Para testar manualmente o ambiente isolado:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+```
+
 ## Assistente IA
 
 O padrão é `https://openrouter.ai/api/v1` com `openrouter/free`. Configure `LLM_BASE_URL`, `LLM_MODEL` e `LLM_API_KEY` (ou `OPENROUTER_API_KEY`) no ambiente ou use **Config / Tokens** para a sessão. Para Ollama ou llama.cpp use a URL OpenAI-compatible local, o nome do modelo e a chave quando exigida.
