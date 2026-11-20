@@ -47,12 +47,12 @@ def sam_center_prompts(detections, size):
 
 
 class GroundingDetector:
-    def __init__(self):
+    def __init__(self, device: str | None = None):
         import torch
         from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 
         self.torch = torch
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.processor = AutoProcessor.from_pretrained(GROUNDING_ID)
         self.model = AutoModelForZeroShotObjectDetection.from_pretrained(
             GROUNDING_ID, use_safetensors=True).to(self.device).eval()
@@ -137,12 +137,12 @@ def depth_preview(depth) -> Image.Image:
 
 
 class DepthEstimator:
-    def __init__(self):
+    def __init__(self, device: str | None = None):
         import torch
         from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 
         self.torch = torch
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.processor = AutoImageProcessor.from_pretrained(DEPTH_ID, use_fast=False)
         self.model = AutoModelForDepthEstimation.from_pretrained(
             DEPTH_ID, use_safetensors=True).to(self.device).eval()
@@ -170,12 +170,12 @@ def scene_alerts(states, probabilities, threshold):
 
 
 class SiglipClassifier:
-    def __init__(self):
+    def __init__(self, device: str | None = None):
         import torch
         from transformers import AutoModel, AutoProcessor
 
         self.torch = torch
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.processor = AutoProcessor.from_pretrained(SIGLIP_ID, use_fast=True)
         self.model = AutoModel.from_pretrained(SIGLIP_ID, use_safetensors=True).to(self.device).eval()
 
